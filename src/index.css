@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.header-active {
+  @apply h-[2px] bg-colorGray w-full;
+}
+
+.active {
+  @apply text-xs md:text-base font-semibold;
+}
+
+@layer components {
+  td,
+  th {
+    @apply border border-colorPrimary px-1 py-1;
+  }
+}
+
+.input-qty {
+  @apply no-spinner border border-colorPrimary rounded-sm w-full p-2 text-center;
+}
+
+.inactive {
+  @apply border border-colorPrimary;
+}
+
+.active {
+  @apply bg-colorPrimary text-white;
+}
+
+.no-spinner {
+  -moz-appearance: textfield; /* Untuk Firefox */
+  -webkit-appearance: none; /* Untuk Chrome, Safari, Edge */
+  appearance: none; /* Standar */
+}
+
+.no-spinner::-webkit-inner-spin-button,
+.no-spinner::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0; /* Menghapus margin default */
+}
