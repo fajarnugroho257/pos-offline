@@ -8,6 +8,7 @@ import ModalDetailNota from "../components/ModalDetailNota";
 import { ToastContainer } from "react-toastify";
 import { Link } from "react-router-dom";
 import {
+  swalConfirm,
   swalError,
   swalLoading,
   swalSuccessAutoClose,
@@ -15,7 +16,7 @@ import {
 import ModalRetur from "../components/ModalRetur";
 import ModalDelete from "../components/ModalDelete";
 import isOnline from "../utilities/isOnline";
-import { dbPromise } from "../services/db";
+import { dbPromise, listPembayaran } from "../services/db";
 
 const Penjualan = () => {
   // state
@@ -53,15 +54,37 @@ const Penjualan = () => {
         );
       }
     } else {
-      const db = await dbPromise;
-      // await db.clear("transactions");
-      const datas = await db.getAll("transactions");
-      console.log(datas);
+      //
+      const datas = await listPembayaran();
+      // console.log(datas);
       setDataTransaksiOffline(datas || []);
       swalSuccessAutoClose("Berhasil", "Data berhasil didapatkan", 500);
     }
   };
-
+  const handleDeleteOffline = async () => {
+    const result = await swalConfirm(
+      "Yakin ?",
+      "Apakah Anda yakin ingin menghapus semua data penjualan..?",
+    );
+    if (result.isConfirmed) {
+      const db = await dbPromise;
+      await db.clear("transactions");
+      getDataTransaksi();
+    }
+  };
+  const handleSyncOffline = async () => {
+    if (!isOnline) {
+      return swalError("Opps..!", "Fitur hanya tersedia saat Online");
+    }
+    const result = await swalConfirm(
+      "Yakin ?",
+      "Apakah Anda yakin ingin sinkronisasi data penjualan..?",
+    );
+    if (result.isConfirmed) {
+      const alltransaksi = await listPembayaran();
+      console.log(alltransaksi);
+    }
+  };
   const reloadGetDataTransaksi = () => {
     const savedTanggal = localStorage.getItem("filterTanggal");
     // const today = new Date().toISOString().split("T")[0];
@@ -105,11 +128,17 @@ const Penjualan = () => {
   };
 
   const handleRetur = (cart_id) => {
+    if (!isOnline) {
+      return swalError("Opps..!", "Fitur hanya tersedia saat Online");
+    }
     setStModalRetur(!stModalRetur);
     setCartId(cart_id);
   };
 
   const handleDelete = (cart_id) => {
+    if (!isOnline) {
+      return swalError("Opps..!", "Fitur hanya tersedia saat Online");
+    }
     setStModalDelete(!stModalDelete);
     setCartId(cart_id);
   };
@@ -163,7 +192,17 @@ const Penjualan = () => {
   return (
     <div className="">
       <div className="h-full overflow-auto px-4 py-12 md:py-14 md:px-5">
-        <div className="flex justify-end">
+        <div className="flex justify-between">
+          <div
+            className={`font-poppins ${isOnline ? "bg-green-500" : "bg-red-500"} flex items-center px-2 gap-1 text-white`}
+          >
+            <i className="fa fa-wifi text-white text-xs"></i>{" "}
+            {isOnline ? "Online" : "Offline"}{" "}
+            <small className="text-white hidden md:block">
+              {!isOnline &&
+                "(data anda tersedia hanya yang di local storage anda)"}
+            </small>
+          </div>
           <Link
             to={"/dashboard"}
             className="font-poppins rounded-sm bg-colorPrimary text-white px-2 py-1 text-xs md:text-sm"
@@ -194,54 +233,54 @@ const Penjualan = () => {
             Draft Penjualan
           </Link>
         </div>
-        <div className="flex justify-between my-3 ">
-          <div className="font-poppins bg-gray-100 flex items-center px-2 gap-1">
-            <i
-              className={`fa fa-wifi ${isOnline ? "text-green-400" : "text-red-500"}`}
-            ></i>{" "}
-            {isOnline ? "Online" : "Offline"}{" "}
-            <small>
-              {!isOnline &&
-                "(data anda tersedia hanya yang di local storage anda)"}
-            </small>
-          </div>
-          <form onSubmit={handleCari}>
-            <div className="flex gap-1 md:gap-2 justify-end">
-              <input
-                type="date"
-                name="start"
-                value={tanggal.start}
-                onChange={(e) =>
-                  setTanggal({ ...tanggal, start: e.target.value })
-                }
-                className="border px-1 py-1 text-xs md:text-sm lg:text-base text-center"
-              />
-              <input
-                type="date"
-                name="end"
-                value={tanggal.end}
-                onChange={(e) =>
-                  setTanggal({ ...tanggal, end: e.target.value })
-                }
-                className="border px-1 py-1 text-xs md:text-sm lg:text-base text-center"
-              />
-              <Link
-                onClick={handleReset}
-                className="bg-red-600 hover:bg-red-500 text-white px-3 rounded-sm text-xs md:text-sm lg:text-base flex items-center"
-              >
-                <i className="fa fa-times"></i>
-              </Link>
-              <button
-                type="submit"
-                className="bg-colorPrimary hover:bg-colorPrimaryHover text-white px-3 rounded-sm text-xs md:text-sm lg:text-base"
-              >
-                <i className="fa fa-search"></i>{" "}
-                <span className="hidden md:inline">Cari</span>
+        <form
+          onSubmit={handleCari}
+          className="flex justify-between items-center"
+        >
+          <div className="flex gap-1">
+            <div className="bg-red-500 text-white px-2 py-1">
+              <button type="button" onClick={handleDeleteOffline}>
+                <i className="fa fa-trash"></i> Hapus Transaksi Offline
               </button>
             </div>
-          </form>
-        </div>
-
+            <div className="bg-colorPrimary text-white px-2 py-1">
+              <button type="button" onClick={handleSyncOffline}>
+                <i className="fa fa-sync"></i> Sync Transaksi Offline
+              </button>
+            </div>
+          </div>
+          <div className="flex gap-1 md:gap-2 justify-end my-3">
+            <input
+              type="date"
+              name="start"
+              value={tanggal.start}
+              onChange={(e) =>
+                setTanggal({ ...tanggal, start: e.target.value })
+              }
+              className="border px-1 py-1 text-xs md:text-sm lg:text-base text-center"
+            />
+            <input
+              type="date"
+              name="end"
+              value={tanggal.end}
+              onChange={(e) => setTanggal({ ...tanggal, end: e.target.value })}
+              className="border px-1 py-1 text-xs md:text-sm lg:text-base text-center"
+            />
+            <Link
+              onClick={handleReset}
+              className="bg-red-600 hover:bg-red-500 text-white px-3 rounded-sm text-xs md:text-sm lg:text-base flex items-center"
+            >
+              <i className="fa fa-times"></i>
+            </Link>
+            <button
+              type="submit"
+              className="bg-colorPrimary hover:bg-colorPrimaryHover text-white px-3 rounded-sm text-xs md:text-sm lg:text-base"
+            >
+              <i className="fa fa-search"></i>{" "}
+              <span className="hidden md:inline">Cari</span>
+            </button>
+          </div>
+        </form>
         <table className="min-w-full border-collapse border border-gray-200 shadow-md rounded-lg text-xs md:text-sm font-poppins">
           <thead>
             <tr className="bg-gray-100 text-gray-700 uppercase text-xs md:text-sm font-semibold text-center">
@@ -341,7 +380,8 @@ const Penjualan = () => {
             ) : dataTransaksiOffline && dataTransaksiOffline.length > 0 ? (
               dataTransaksiOffline.map((val, index) => {
                 ttlBelanja += parseInt(val.trans_total);
-                ttlCash += parseInt(val.trans_bayar);
+                let trans_bayar = val.trans_bayar === "" ? 0 : val.trans_bayar;
+                ttlCash += parseInt(trans_bayar);
                 ttlKembalian += parseInt(val.trans_kembalian);
                 return (
                   <tr
@@ -368,6 +408,9 @@ const Penjualan = () => {
                     </td>
                     <td className="px-2 py-1 md:py-3 border border-gray-200 text-right">
                       {RupiahFormat(val.trans_kembalian)}
+                    </td>
+                    <td className="px-2 py-1 md:py-3 border border-gray-200 text-center">
+                      -
                     </td>
                     <td className="px-2 py-1 md:py-3 border border-gray-200 text-center ">
                       <button

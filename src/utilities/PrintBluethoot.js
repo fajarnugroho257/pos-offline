@@ -7,7 +7,7 @@ const PrintBluethoot = async (
   tagihan,
   valInputBayar,
   kembalian,
-  trans_pelanggan
+  trans_pelanggan,
 ) => {
   //
   function padCenter(text, width, padChar = " ") {
@@ -50,10 +50,14 @@ const PrintBluethoot = async (
     content += "=============================" + "\n";
 
     printDatas.forEach((item) => {
-      let nama = item.cart_nama;
+      let nama = item.cart_nama ?? item.barang_nama;
       let cart_diskon = item.cart_diskon === "yes" ? " (Gros)" : "";
       let qty = String(item.cart_qty).padStart(3, " "); // lebar tetap
-      let harga = `${formatRupiah(item.cart_harga_jual)}`.padEnd(8, " ");
+      let harga =
+        `${formatRupiah(item.cart_harga_jual ?? item.barang_harga_jual)}`.padEnd(
+          8,
+          " ",
+        );
       let subTotal = `${formatRupiah(item.cart_subtotal)}`.padStart(10, " ");
       content += `| ${nama}${cart_diskon}\n| ${harga} | ${qty} | ${subTotal}|\n`;
     });

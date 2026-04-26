@@ -74,5 +74,41 @@ export const findBarang = async (barang_cabang_id) => {
 export const findCartDraft = async () => {
   const db = await dbPromise;
   const alldatas = await db.getAll("transactions");
-  return alldatas.find((item) => item.trans_st == "draft");
+  return alldatas.find((item) => item.cart_st == "draft");
+};
+
+export const listPembayaran = async () => {
+  const db = await dbPromise;
+  const alldatas = await db.getAll("transactions");
+
+  const filtered = alldatas.filter((item) => {
+    return item.cart_st === "yes";
+  });
+  return filtered;
+};
+
+export const findCartBooking = async () => {
+  const db = await dbPromise;
+  const alldatas = await db.getAll("transactions");
+
+  const filtered = alldatas.filter((item) => {
+    return item.cart_st === "booking";
+  });
+  return filtered;
+};
+
+export const findCartHutang = async () => {
+  const db = await dbPromise;
+  const alldatas = await db.getAll("transactions");
+
+  const filtered = alldatas.filter((item) => {
+    return item.cart_st === "hutang";
+  });
+  return filtered;
+};
+
+export const findCartById = async (cart_id) => {
+  const db = await dbPromise;
+  const alldatas = await db.getAll("transactions");
+  return alldatas.find((item) => item.cart_id == cart_id);
 };

@@ -1,97 +1,3 @@
-// import { toast } from "react-toastify";
-// import api from "../utilities/axiosInterceptor";
-// import { getToken } from "../utilities/Auth";
-// import React, { useState, useEffect } from "react";
-// import { Link } from "react-router-dom";
-// import {
-//   swalError,
-//   swalLoading,
-//   swalSuccessAutoClose,
-// } from "../utilities/Swal";
-// import { dbPromise } from "../services/db";
-
-// const Barang = () => {
-//   // state
-//   const [dataTransaksi, setDataTransaksi] = useState([]);
-//   //
-//   // get data
-//   const getDataTransaksi = async () => {
-//     // swalLoading("Silahkan tunggu...", "Sedang mendapatkan data");
-//     try {
-//       //   const cabang_id = localStorage.getItem("cabang_id");
-//       //   const params = { cabang_id: cabang_id };
-//       //   const token = getToken();
-//       //   const db = await dbPromise;
-//       //   console.log(db);
-//       //   const response = await api.post(`list-data-barang-by-cabang`, params, {
-//       //     headers: {
-//       //       Authorization: `Bearer ${token}`,
-//       //     },
-//       //   });
-//       //   const barangs = response.data.data || [];
-//       //   const tx = db.transaction("products", "readwrite");
-//       //   const store = tx.objectStore("products");
-//       //   for (const barang of barangs) {
-//       //     await store.put(barang);
-//       //   }
-//       //   swalSuccessAutoClose("Berhasil", "Data berhasil didapatkan", 500);
-//       //   await tx.done;
-//       //   console.log("Data barang berhasil disinkronkan ke offline storage.");
-//       // const dataTanggal = { start, end };
-//       // localStorage.setItem("filterTanggal", JSON.stringify(dataTanggal));
-//       const db = await dbPromise;
-//       // Mengambil semua data dari object store "products"
-//       const datas = await db.getAll("products");
-//       console.log(datas);
-//     } catch (error) {
-//       swalError(
-//         "Opps..!",
-//         error?.response?.data?.message || error.message || "Terjadi kesalahan",
-//       );
-//     }
-//   };
-//   useEffect(() => {
-//     getDataTransaksi();
-//   }, []);
-//   return (
-//     <div className="">
-//       <div className="h-full overflow-auto px-4 py-12 md:py-14 md:px-10">
-//         <div className="flex justify-end">
-//           <div className="flex justify-end mb-3">
-//             <Link
-//               to={"/dashboard"}
-//               className="font-poppins rounded-sm bg-colorPrimary text-white px-2 py-1 text-xs md:text-sm"
-//             >
-//               <i className="fa fa-arrow-left"></i> Home
-//             </Link>
-//           </div>
-//         </div>
-//         <table className="w-full md:w-1/2 md:mx-auto border-collapse border border-gray-200 shadow-md rounded-lg text-xs md:text-base font-poppins">
-//           <thead>
-//             <tr className="bg-gray-100 text-gray-700 uppercase text-sm font-semibold text-center">
-//               <th className="px-1 py-3 border border-gray-200">No</th>
-//               <th className="px-1 py-3 border border-gray-200">Nama</th>
-//               <th className="px-1 py-3 border border-gray-200">Status</th>
-//             </tr>
-//           </thead>
-//           <tbody>
-//             <tr key="11" className="border border-gray-200 hover:bg-gray-50">
-//               <td className="px-6 py-3 border border-gray-200 text-center">
-//                 1
-//               </td>
-//               <td className="px-6 py-3 border border-gray-200 text-center">
-//                 Printer
-//               </td>
-//             </tr>
-//           </tbody>
-//         </table>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default Barang;
-
 import React, { useEffect, useState } from "react";
 import api from "../utilities/axiosInterceptor";
 import { getToken } from "../utilities/Auth";
@@ -126,13 +32,11 @@ const Barang = () => {
   const [stok, setStok] = useState(false);
   const [id, setId] = useState(false);
   // const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState("penjualan");
   // get data
   const getBarangMaster = async (pageNumber = 1, keyword = "") => {
     swalLoading("Silahkan tunggu...", "Sedang mendapatkan data");
-
-    try {
-      if (isOnline) {
+    if (isOnline) {
+      try {
         const cabang_id = localStorage.getItem("cabang_id");
         const params = { cabang_id: cabang_id };
         const token = getToken();
@@ -150,31 +54,45 @@ const Barang = () => {
         setLastPage(response.data.last_page);
         setPerPage(response.data.per_page);
         swalSuccessAutoClose("Berhasil", "Data berhasil didapatkan", 500);
-      } else {
-        const db = await dbPromise;
-        const datas = await db.getAll("barangMaster");
-        console.log(datas);
-        setData(datas || []);
-        setPage(1);
-        setLastPage(0);
-        setPerPage(50);
-        swalSuccessAutoClose("Berhasil", "Data berhasil didapatkan", 500);
+      } catch (error) {
+        swalError(
+          "Opps..!",
+          error?.response?.data?.message ||
+            error.message ||
+            "Terjadi kesalahan",
+        );
       }
-    } catch (error) {
-      swalError(
-        "Opps..!",
-        error?.response?.data?.message || error.message || "Terjadi kesalahan",
+    } else {
+      const db = await dbPromise;
+      const datas = await db.getAll("barangMaster");
+      const filtered = datas.filter((item) =>
+        item.barang_nama?.toLowerCase().includes(keyword),
       );
+      const pagination = paginate(filtered, pageNumber, 50);
+      setData(pagination.data);
+      setPage(pageNumber);
+      setLastPage(pagination.last_page);
+      setPerPage(50);
+      swalSuccessAutoClose("Berhasil", "Data berhasil didapatkan", 700);
     }
+  };
+
+  const paginate = (data, page, perPage) => {
+    const start = (page - 1) * perPage;
+    const end = start + perPage;
+
+    return {
+      data: data.slice(start, end),
+      current_page: page,
+      per_page: perPage,
+      last_page: Math.ceil(data.length / perPage),
+      total: data.length,
+    };
   };
 
   useEffect(() => {
     getBarangMaster(1, search);
   }, []);
-
-  const handleTab = (tabStatus) => {
-    setTab(tabStatus);
-  };
 
   const [stAdd, setStAdd] = useState(false);
   const addBarang = () => {
@@ -309,52 +227,64 @@ const Barang = () => {
           </Link>
         </div> */}
         <form onSubmit={handleCari}>
-          <div className="my-3 flex gap-1 md:gap-2 justify-end">
-            <input
-              type="text"
-              name="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="border px-1 py-1 text-xs md:text-sm lg:text-base"
-              placeholder="Nama barang / Barcode"
-            />
-            <Link
-              onClick={handleReset}
-              className="bg-red-600 hover:bg-red-500 text-white px-3 rounded-sm text-xs md:text-sm lg:text-base flex items-center"
+          <div className="flex justify-between my-3">
+            <div
+              className={`font-poppins ${isOnline ? "bg-green-500" : "bg-red-500"} flex items-center px-2 gap-1 text-white`}
             >
-              <i className="fa fa-times"></i>
-            </Link>
-            <button
-              type="submit"
-              className="bg-colorPrimary hover:bg-colorPrimaryHover text-white px-2 rounded-sm text-xs md:text-sm font-poppins flex items-center gap-1"
-            >
-              <i className="fa fa-search"></i>{" "}
-              <span className="hidden md:inline">Cari</span>
-            </button>
-            <Link
+              <i className="fa fa-wifi text-white text-xs"></i>{" "}
+              {isOnline ? "Online" : "Offline"}{" "}
+              <small className="text-white hidden md:block">
+                {!isOnline &&
+                  "(data anda tersedia hanya yang di local storage anda)"}
+              </small>
+            </div>
+            <div className="flex gap-1 md:gap-2 justify-end">
+              <input
+                type="text"
+                name="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="border px-1 py-1 text-xs md:text-sm lg:text-base"
+                placeholder="Nama barang / Barcode"
+              />
+              <Link
+                onClick={handleReset}
+                className="bg-red-600 hover:bg-red-500 text-white px-3 rounded-sm text-xs md:text-sm lg:text-base flex items-center"
+              >
+                <i className="fa fa-times"></i>
+              </Link>
+              <button
+                type="submit"
+                className="bg-colorPrimary hover:bg-colorPrimaryHover text-white px-2 rounded-sm text-xs md:text-sm font-poppins flex items-center gap-1"
+              >
+                <i className="fa fa-search"></i>{" "}
+                <span className="hidden md:inline">Cari</span>
+              </button>
+              {/* <Link
               onClick={addBarang}
               className="bg-colorPrimary hover:bg-colorPrimaryHover text-white py-1 px-2 rounded-sm text-xs md:text-sm font-poppins flex items-center gap-1"
             >
               <i className="fa fa-plus"></i>
               <span className="hidden md:inline">Tambah</span>
-            </Link>
-            {isOnline && (
+            </Link> */}
+              {isOnline && (
+                <Link
+                  onClick={syncLocal}
+                  className="bg-colorPrimary hover:bg-colorPrimaryHover text-white py-1 px-2 rounded-sm text-xs md:text-sm font-poppins flex items-center gap-1"
+                >
+                  <i className="fa fa-sync-alt"></i>
+                  <span className="hidden md:inline">Sync</span>
+                </Link>
+              )}
+
               <Link
-                onClick={syncLocal}
+                to={"/dashboard"}
                 className="bg-colorPrimary hover:bg-colorPrimaryHover text-white py-1 px-2 rounded-sm text-xs md:text-sm font-poppins flex items-center gap-1"
               >
-                <i className="fa fa-sync-alt"></i>
-                <span className="hidden md:inline">Sync</span>
+                <i className="fa fa-arrow-left"></i>{" "}
+                <span className="hidden md:inline">Home</span>
               </Link>
-            )}
-
-            <Link
-              to={"/dashboard"}
-              className="bg-colorPrimary hover:bg-colorPrimaryHover text-white py-1 px-2 rounded-sm text-xs md:text-sm font-poppins flex items-center gap-1"
-            >
-              <i className="fa fa-arrow-left"></i>{" "}
-              <span className="hidden md:inline">Home</span>
-            </Link>
+            </div>
           </div>
         </form>
         <Table

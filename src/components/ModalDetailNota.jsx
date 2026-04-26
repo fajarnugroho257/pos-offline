@@ -6,6 +6,9 @@ import { QZTrayProvider, useQZTray } from "./QZTrayContext";
 import PrintBluethoot from "../utilities/PrintBluethoot";
 import RupiahFormat from "../utilities/RupiahFormat";
 import PilihPrint from "../utilities/PilihPrint";
+import isOnline from "../utilities/isOnline";
+import { findCartById } from "../services/db";
+import { swalError } from "../utilities/Swal";
 
 function ModalDetailNota({ isOpen, onClose, cartId }) {
   //
@@ -14,27 +17,44 @@ function ModalDetailNota({ isOpen, onClose, cartId }) {
   //
   const detailNota = async () => {
     let params = { cart_id: cartId };
-    try {
-      const toastId = toast.loading("Getting data...");
-      const token = getToken();
-      const response = await api.post(`detail-nota`, params, {
-        headers: {
-          Authorization: `Bearer ${token}`, // Sisipkan token di header
-        },
-      });
-      if (response.data.success) {
-        toast.update(toastId, {
-          render: "Berhasil mendapatkan data nota",
-          type: "success",
-          isLoading: false,
-          autoClose: 1000,
+    const toastId = toast.loading("Getting data...");
+    if (isOnline) {
+      try {
+        const token = getToken();
+        const response = await api.post(`detail-nota`, params, {
+          headers: {
+            Authorization: `Bearer ${token}`, // Sisipkan token di header
+          },
         });
-        setNotaData(response.data.data);
-        setTrans(response.data.transaksiCart);
+        if (response.data.success) {
+          toast.update(toastId, {
+            render: "Berhasil mendapatkan data nota",
+            type: "success",
+            isLoading: false,
+            autoClose: 1000,
+          });
+          setNotaData(response.data.data);
+          setTrans(response.data.transaksiCart);
+        }
+      } catch (error) {
+        swalError(
+          "Opps..!",
+          error?.response?.data?.message ||
+            error.message ||
+            "Terjadi kesalahan",
+        );
       }
-        // console.log(response.data.data);
-    } catch (error) {
-      console.log(error);
+    } else {
+      const detail = await findCartById(cartId);
+      console.log(detail);
+      toast.update(toastId, {
+        render: "Berhasil mendapatkan data nota",
+        type: "success",
+        isLoading: false,
+        autoClose: 1000,
+      });
+      setNotaData(detail.sortedCart);
+      setTrans(detail);
     }
   };
 
@@ -49,21 +69,23 @@ function ModalDetailNota({ isOpen, onClose, cartId }) {
       trans.trans_total,
       trans.trans_bayar,
       trans.trans_kembalian,
-      trans.trans_pelanggan
+      trans.trans_pelanggan,
     );
   };
   //
   if (!isOpen) return null;
   return (
     <>
-    {notaData.length >= 1 && (
+      {notaData.length >= 1 && (
         <div className="fixed inset-0 flex items-center justify-center z-50 font-poppins p-4">
           {/* Overlay */}
-          <div className="absolute inset-0 bg-gray-900 opacity-50" onClick={onClose}></div>
-          
+          <div
+            className="absolute inset-0 bg-gray-900 opacity-50"
+            onClick={onClose}
+          ></div>
+
           {/* Modal Card */}
           <div className="bg-white w-[95%] md:w-[60%] h-[90%] p-6 rounded-lg shadow-lg relative z-10 flex flex-col">
-            
             {/* Header: Tetap di atas */}
             <div className="flex-none">
               <h2 className="text-base md:text-lg font-bold mb-2 text-black">
@@ -105,10 +127,13 @@ function ModalDetailNota({ isOpen, onClose, cartId }) {
                             {index + 1}
                           </td>
                           <td className="px-6 py-3 border border-gray-200">
-                            {val.cart_nama} {val.cart_diskon === 'yes' ? "(Grosir)" : ""}
+                            {val.cart_nama ?? val.barang_nama}{" "}
+                            {val.cart_diskon === "yes" ? "(Grosir)" : ""}
                           </td>
                           <td className="px-6 py-3 border border-gray-200 text-center">
-                            {RupiahFormat(val.cart_harga_jual)}
+                            {RupiahFormat(
+                              val.cart_harga_jual ?? val.barang_harga_jual,
+                            )}
                           </td>
                           <td className="px-6 py-3 border border-gray-200 text-right">
                             {val.cart_qty}

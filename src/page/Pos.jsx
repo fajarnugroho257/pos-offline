@@ -15,11 +15,13 @@ import {
   findCartDraft,
   saveOrUpdateTransaction,
 } from "../services/db";
+import { getUserId } from "../utilities/Auth";
 
 function Pos() {
   // TOKEN
   const token = localStorage.getItem("token");
   const cabang_id = localStorage.getItem("cabang_id");
+  const userId = getUserId();
   // printer
   const navigate = useNavigate();
   const nowPrintSelected = localStorage.getItem("printSelected");
@@ -63,9 +65,11 @@ function Pos() {
         }
       } else {
         const draftOffline = await findCartDraft();
-        console.log(draftOffline.cart_id);
-        SetCart(draftOffline.sortedCart);
-        setCartId(draftOffline.cart_id);
+        // console.log(draftOffline);
+        if (draftOffline) {
+          SetCart(draftOffline.sortedCart);
+          setCartId(draftOffline.cart_id);
+        }
       }
     };
     fectData();
@@ -102,6 +106,7 @@ function Pos() {
               );
               draftCart = response.data.barang_master;
             } else {
+              console.log(childData);
               draftCart = await findBarang(childData);
             }
             const draftDataCart = {
@@ -375,12 +380,13 @@ function Pos() {
           // console.log(sortedCart);
           const saveTransaction = {
             cart_id: cartIdOffline,
-            trans_date: null,
-            trans_total: null,
-            trans_bayar: null,
-            trans_kembalian: null,
-            trans_pelanggan: null,
-            trans_st: "draft",
+            user_id: userId,
+            // trans_date: null,
+            // trans_total: null,
+            // trans_bayar: null,
+            // trans_kembalian: null,
+            // trans_pelanggan: null,
+            cart_st: "draft",
             sortedCart: sortedCart,
           };
           console.log(saveTransaction);

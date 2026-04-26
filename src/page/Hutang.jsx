@@ -12,10 +12,13 @@ import {
   swalSuccessAutoClose,
 } from "../utilities/Swal";
 import ModalListCartHutang from "../components/ModalListCartHutang";
+import isOnline from "../utilities/isOnline";
+import { findCartHutang } from "../services/db";
 
 const Hutang = () => {
   // state
   const [dataTransaksi, setDataTransaksi] = useState([]);
+  const [dataTransaksiOffline, setDataTransaksiOffline] = useState([]);
   const [tab, setTab] = useState("hutang");
   const token = getToken();
   const [tanggal, setTanggal] = useState({
@@ -25,24 +28,34 @@ const Hutang = () => {
   // get data
   const getDataTransaksi = async (start, end) => {
     swalLoading("Silahkan tunggu...", "Sedang mendapatkan data");
-    try {
-      const params = { start: start, end: end };
-      const response = await api.post(
-        `list-transaksi-data-barang-cabang-hutang`,
-        params,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
+    if (isOnline) {
+      try {
+        const params = { start: start, end: end };
+        const response = await api.post(
+          `list-transaksi-data-barang-cabang-hutang`,
+          params,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
           },
-        },
-      );
-      setDataTransaksi(response.data.data || []);
+        );
+        setDataTransaksi(response.data.data || []);
+        swalSuccessAutoClose("Berhasil", "Data berhasil didapatkan", 500);
+      } catch (error) {
+        swalError(
+          "Opps..!",
+          error?.response?.data?.message ||
+            error.message ||
+            "Terjadi kesalahan",
+        );
+      }
+    } else {
+      // get offline
+      const cartHutang = await findCartHutang();
+      setDataTransaksiOffline(cartHutang);
       swalSuccessAutoClose("Berhasil", "Data berhasil didapatkan", 500);
-    } catch (error) {
-      swalError(
-        "Opps..!",
-        error?.response?.data?.message || error.message || "Terjadi kesalahan",
-      );
+      // console.log(cartHutang);
     }
   };
 
@@ -63,7 +76,7 @@ const Hutang = () => {
       // } else {
       //   tanggalFix = parsed;
       // }
-      // 
+      //
       tanggalFix = JSON.parse(savedTanggal);
     } else {
       tanggalFix = getDefaultTanggal();
@@ -72,8 +85,8 @@ const Hutang = () => {
 
     setTanggal(tanggalFix);
     getDataTransaksi(tanggalFix.start, tanggalFix.end);
-  }
-  
+  };
+
   useEffect(() => {
     reloadGetDataTransaksi();
   }, []);
@@ -138,6 +151,11 @@ const Hutang = () => {
     reloadGetDataTransaksi();
   };
 
+  //
+  const formaOnlytDate = (dateString) => {
+    const date = dayjs(dateString).locale("id");
+    return date.format("DD MMM YYYY");
+  };
   //
   let ttlUangMuka = 0;
   let ttlTagihan = 0;
@@ -207,7 +225,8 @@ const Hutang = () => {
               type="submit"
               className="bg-colorPrimary hover:bg-colorPrimaryHover text-white px-3 rounded-sm text-xs md:text-sm lg:text-base"
             >
-              <i className="fa fa-search"></i> <span className="hidden md:inline">Cari</span>
+              <i className="fa fa-search"></i>{" "}
+              <span className="hidden md:inline">Cari</span>
             </button>
           </div>
         </form>
@@ -215,13 +234,21 @@ const Hutang = () => {
           <thead>
             <tr className="bg-gray-100 text-gray-700 uppercase font-semibold text-center ext-xs md:text-sm">
               <th className="px-2 py-1 md:py-3 border border-gray-200">No</th>
-              <th className="px-2 py-1 md:py-3 border border-gray-200">Date Create</th>
-              <th className="px-2 py-1 md:py-3 border border-gray-200">Cart ID</th>
-              <th className="px-2 py-1 md:py-3 border border-gray-200">Pelanggan</th>
+              <th className="px-2 py-1 md:py-3 border border-gray-200">
+                Date Create
+              </th>
+              <th className="px-2 py-1 md:py-3 border border-gray-200">
+                Cart ID
+              </th>
+              <th className="px-2 py-1 md:py-3 border border-gray-200">
+                Pelanggan
+              </th>
               <th className="px-2 py-1 md:py-3 border border-gray-200 bg-green-200">
                 Ttl Belanja
               </th>
-              <th className="px-2 py-1 md:py-3 border border-gray-200">Uang Muka</th>
+              <th className="px-2 py-1 md:py-3 border border-gray-200">
+                Uang Muka
+              </th>
               <th className="px-2 py-1 md:py-3 border border-gray-200 bg-red-200">
                 Kekurangan
               </th>
@@ -230,7 +257,7 @@ const Hutang = () => {
             </tr>
           </thead>
           <tbody>
-            {dataTransaksi && dataTransaksi.length > 0 ? (
+            {isOnline && dataTransaksi && dataTransaksi.length > 0 ? (
               dataTransaksi.map((val, index) => {
                 ttlUangMuka += parseInt(val.cart.cart_draft.draft_uang_muka);
                 ttlTagihan += parseInt(val.cart.cart_draft.draft_uang_tagihan);
@@ -279,6 +306,60 @@ const Hutang = () => {
                   </tr>
                 );
               })
+            ) : dataTransaksiOffline && dataTransaksiOffline.length > 0 ? (
+              dataTransaksiOffline.map((val, index) => {
+                ttlUangMuka += parseInt(val.draft_uang_muka);
+                ttlTagihan += parseInt(val.ttlBayar);
+                ttlKekurangan += parseInt(val.draft_uang_sisa);
+                return (
+                  <tr
+                    key={index}
+                    className="border border-gray-200 hover:bg-gray-50"
+                  >
+                    <td className="px-2 py-1 md:py-3 border border-gray-200 text-center">
+                      {index + 1}
+                    </td>
+                    <td className="px-2 py-1 md:py-3 border border-gray-200 text-center">
+                      {formaOnlytDate(val.draft_start)}
+                    </td>
+                    <td className="px-2 py-1 md:py-3 border border-gray-200 text-center">
+                      {val.cart_id}
+                    </td>
+                    {/* <td className="px-2 py-1 md:py-3 border border-gray-200 text-center">
+                      {formaOnlytDate(val.draft_start)}
+                      {" - "}
+                      {formaOnlytDate(val.draft_end)}
+                    </td> */}
+                    <td className="px-2 py-1 md:py-3 border border-gray-200 text-center">
+                      {val.trans_pelanggan}
+                    </td>
+                    <td className="px-2 py-1 md:py-3 border border-gray-200 text-right bg-green-200">
+                      {RupiahFormat(val.ttlBayar)}
+                    </td>
+                    <td className="px-2 py-1 md:py-3 border border-gray-200 text-right">
+                      {RupiahFormat(val.draft_uang_muka)}
+                    </td>
+                    <td className="px-2 py-1 md:py-3 border border-gray-200 text-right bg-red-200">
+                      {RupiahFormat(val.draft_uang_sisa)}
+                    </td>
+                    <td className="px-2 py-1 md:py-3 border border-gray-200">
+                      {val.draft_note}
+                    </td>
+                    <td className="px-2 py-3 border border-gray-200 text-base md:text-xl text-center">
+                      <Link
+                        onClick={() => handleListCart(val.cart_id)}
+                        title="Lihat Data Barang"
+                        className="fa fa-eye text-colorPrimary md:mr-3"
+                      ></Link>
+                      <Link
+                        onClick={() => handleNota(val.cart_id)}
+                        title="Ubah Data / Lanjutkan Transaksi"
+                        className="fa fa-shopping-cart text-red-600 md:mr-3"
+                      ></Link>
+                    </td>
+                  </tr>
+                );
+              })
             ) : (
               <tr>
                 <td
@@ -320,7 +401,11 @@ const Hutang = () => {
         />
       )}
       {stModalList && (
-        <ModalListCartHutang isOpen={true} onClose={handleListCart} cartId={cartId} />
+        <ModalListCartHutang
+          isOpen={true}
+          onClose={handleListCart}
+          cartId={cartId}
+        />
       )}
     </div>
   );

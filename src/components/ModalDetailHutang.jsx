@@ -14,6 +14,8 @@ import {
   swalSuccess,
   swalSuccessAutoClose,
 } from "../utilities/Swal";
+import isOnline from "../utilities/isOnline";
+import { findCartById } from "../services/db";
 
 function ModalDetailHutang({ isOpen, onClose, cartId, loadData }) {
   //
@@ -23,27 +25,39 @@ function ModalDetailHutang({ isOpen, onClose, cartId, loadData }) {
   const [tagihan, setTagihan] = useState(0);
   //
   const detailNota = async () => {
-    try {
-      swalLoading("Silahkan tunggu...", "Sedang mendapatkan data");
-      const token = getToken();
-      const response = await api.get(`list-cart-data?cart_id=${cartId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`, // Sisipkan token di header
-        },
-      });
-      if (response.data.success) {
-        swalSuccessAutoClose("Berhasil", "Data berhasil didapatkan", 500);
-        setNotaData(response.data.rs_cart);
-        setCartDraft(response.data.cart_draft);
-        setRows(response.data.cart_draft.tagihan_cicilan);
-        setTagihan(parseInt(response.data.cart_draft.draft_uang_sisa));
+    if (isOnline) {
+      try {
+        swalLoading("Silahkan tunggu...", "Sedang mendapatkan data");
+        const token = getToken();
+        const response = await api.get(`list-cart-data?cart_id=${cartId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`, // Sisipkan token di header
+          },
+        });
+        if (response.data.success) {
+          swalSuccessAutoClose("Berhasil", "Data berhasil didapatkan", 500);
+          setNotaData(response.data.rs_cart);
+          setCartDraft(response.data.cart_draft);
+          setRows(response.data.cart_draft.tagihan_cicilan);
+          setTagihan(parseInt(response.data.cart_draft.draft_uang_sisa));
+        }
+        // console.log(response.data.data);
+      } catch (error) {
+        swalError(
+          "Opps..!",
+          error?.response?.data?.message ||
+            error.message ||
+            "Terjadi kesalahan",
+        );
       }
-      // console.log(response.data.data);
-    } catch (error) {
-      swalError(
-        "Opps..!",
-        error?.response?.data?.message || error.message || "Terjadi kesalahan",
-      );
+    } else {
+      const detail = await findCartById(cartId);
+      console.log(detail);
+      swalSuccessAutoClose("Berhasil", "Data berhasil didapatkan", 500);
+      setNotaData(detail.sortedCart);
+      setCartDraft(detail);
+      // setRows(response.data.cart_draft.tagihan_cicilan);
+      // setTagihan(parseInt(response.data.cart_draft.draft_uang_sisa));
     }
   };
 
@@ -145,11 +159,13 @@ function ModalDetailHutang({ isOpen, onClose, cartId, loadData }) {
     <>
       {notaData.length >= 1 && (
         <div className="fixed inset-0 flex items-center justify-center z-50 font-poppins p-4">
-          <div className="absolute inset-0 bg-gray-900 opacity-50" onClick={onclose}></div>
+          <div
+            className="absolute inset-0 bg-gray-900 opacity-50"
+            onClick={onclose}
+          ></div>
 
           {/* Modal Card */}
           <div className="bg-white w-[95%] md:w-[80%] h-[90%] p-6 rounded-lg shadow-lg relative z-10 flex flex-col">
-            
             {/* Header: Tetap di atas */}
             <div className="flex-none">
               <h2 className="text-base md:text-lg font-bold mb-2 text-black">
@@ -192,11 +208,13 @@ function ModalDetailHutang({ isOpen, onClose, cartId, loadData }) {
                             {index + 1}
                           </td>
                           <td className="px-6 py-3 border border-gray-200">
-                            {val.cart_nama}{" "}
+                            {val.cart_nama ?? val.barang_nama}{" "}
                             {val.cart_diskon === "yes" ? "(Grosir)" : ""}
                           </td>
                           <td className="px-6 py-3 border border-gray-200 text-center">
-                            {RupiahFormat(val.cart_harga_jual)}
+                            {RupiahFormat(
+                              val.cart_harga_jual ?? val.barang_harga_jual,
+                            )}
                           </td>
                           <td className="px-6 py-3 border border-gray-200 text-right">
                             {val.cart_qty}
@@ -221,118 +239,118 @@ function ModalDetailHutang({ isOpen, onClose, cartId, loadData }) {
                   </tbody>
                 </table>
                 <form action="" onSubmit={handleSimpan}>
-                    <table className="min-w-full border-collapse border border-gray-200 shadow-md rounded-lg text-xs md:text-base">
-                      <thead>
-                        <tr className="bg-gray-100 text-gray-700 uppercase text-sm font-semibold text-center">
-                          <th className="w-5 px-1 py-3 border border-gray-200">
-                            No
-                          </th>
-                          <th className="px-1 py-3 border border-gray-200">
-                            Tanggal
-                          </th>
-                          <th className="px-1 py-3 border border-gray-200">
-                            Uang Pembayaran
-                          </th>
-                          <th className="px-1 py-3 border border-gray-200"></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr
-                          key="uangMuka"
-                          className={`border border-gray-200 hover:bg-gray-50`}
-                        >
+                  <table className="min-w-full border-collapse border border-gray-200 shadow-md rounded-lg text-xs md:text-base">
+                    <thead>
+                      <tr className="bg-gray-100 text-gray-700 uppercase text-sm font-semibold text-center">
+                        <th className="w-5 px-1 py-3 border border-gray-200">
+                          No
+                        </th>
+                        <th className="px-1 py-3 border border-gray-200">
+                          Tanggal
+                        </th>
+                        <th className="px-1 py-3 border border-gray-200">
+                          Uang Pembayaran
+                        </th>
+                        <th className="px-1 py-3 border border-gray-200"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        key="uangMuka"
+                        className={`border border-gray-200 hover:bg-gray-50`}
+                      >
+                        <td className="px-6 py-3 border border-gray-200 text-center">
+                          1
+                        </td>
+                        <td className="px-6 py-3 border border-gray-200 text-center">
+                          {formatDate(cartDraft.created_at)}
+                        </td>
+                        <td className="px-6 py-3 border border-gray-200 text-right">
+                          {cartDraft.draft_uang_muka === ""
+                            ? "Tidak ada uang muka"
+                            : RupiahFormat(cartDraft.draft_uang_muka)}
+                        </td>
+                        <td className="px-3 border border-gray-200 text-center">
+                          <i className="fa fa-times text-gray-500"></i>
+                        </td>
+                      </tr>
+                      {rows.map((row, index) => (
+                        <tr key={index}>
                           <td className="px-6 py-3 border border-gray-200 text-center">
-                            1
+                            {index + 2}
                           </td>
                           <td className="px-6 py-3 border border-gray-200 text-center">
-                            {formatDate(cartDraft.created_at)}
+                            <input
+                              type="date"
+                              className="border py-1 px-2 w-28 md:w-44"
+                              value={row.cicilan_date}
+                              onChange={(e) =>
+                                handleChange(
+                                  index,
+                                  "cicilan_date",
+                                  e.target.value,
+                                )
+                              }
+                              required
+                            />
                           </td>
                           <td className="px-6 py-3 border border-gray-200 text-right">
-                            {cartDraft.draft_uang_muka === ""
-                              ? "Tidak ada uang muka"
-                              : RupiahFormat(cartDraft.draft_uang_muka)}
+                            <input
+                              type="text"
+                              className="border py-1 px-2 w-24 text-right"
+                              value={row.cicilan}
+                              onChange={(e) =>
+                                handleChange(index, "cicilan", e.target.value)
+                              }
+                              required
+                            />
                           </td>
                           <td className="px-3 border border-gray-200 text-center">
-                            <i className="fa fa-times text-gray-500"></i>
+                            <Link
+                              onClick={() => handleDeleteRow(index)}
+                              className="fa fa-times text-red-500"
+                            ></Link>
                           </td>
                         </tr>
-                        {rows.map((row, index) => (
-                          <tr key={index}>
-                            <td className="px-6 py-3 border border-gray-200 text-center">
-                              {index + 2}
-                            </td>
-                            <td className="px-6 py-3 border border-gray-200 text-center">
-                              <input
-                                type="date"
-                                className="border py-1 px-2 w-28 md:w-44"
-                                value={row.cicilan_date}
-                                onChange={(e) =>
-                                  handleChange(
-                                    index,
-                                    "cicilan_date",
-                                    e.target.value,
-                                  )
-                                }
-                                required
-                              />
-                            </td>
-                            <td className="px-6 py-3 border border-gray-200 text-right">
-                              <input
-                                type="text"
-                                className="border py-1 px-2 w-24 text-right"
-                                value={row.cicilan}
-                                onChange={(e) =>
-                                  handleChange(index, "cicilan", e.target.value)
-                                }
-                                required
-                              />
-                            </td>
-                            <td className="px-3 border border-gray-200 text-center">
-                              <Link
-                                onClick={() => handleDeleteRow(index)}
-                                className="fa fa-times text-red-500"
-                              ></Link>
-                            </td>
-                          </tr>
-                        ))}
-                        <tr className="bg-red-200">
-                          <td
-                            colSpan="2"
-                            className="px-6 py-3 border border-gray-200 text-right"
-                          >
-                            Kekurangan
-                          </td>
-                          <td className="px-6 py-3 border border-gray-200 text-right">
-                            Rp {sisaTagihan.toLocaleString("id-ID")}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                    <div className="justify-between mt-3 gap-1 flex">
-                      <Link
-                        className="bg-red-600 w-20  h-8 text-white text-sm flex gap-1 items-center justify-center"
-                        title="Lunasi Transaksi"
-                        onClick={() => handleLunas()}
+                      ))}
+                      <tr className="bg-red-200">
+                        <td
+                          colSpan="2"
+                          className="px-6 py-3 border border-gray-200 text-right"
+                        >
+                          Kekurangan
+                        </td>
+                        <td className="px-6 py-3 border border-gray-200 text-right">
+                          Rp {sisaTagihan.toLocaleString("id-ID")}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <div className="justify-between mt-3 gap-1 flex">
+                    <Link
+                      className="bg-red-600 w-20  h-8 text-white text-sm flex gap-1 items-center justify-center"
+                      title="Lunasi Transaksi"
+                      onClick={() => handleLunas()}
+                    >
+                      <i className="fa fa-check"></i> Lunas
+                    </Link>
+                    <div className="flex gap-2">
+                      <button
+                        type="submit"
+                        className="bg-blue-600 w-8 h-8 text-white"
+                        title="Simpan Cicilan"
                       >
-                        <i className="fa fa-check"></i> Lunas
-                      </Link>
-                      <div className="flex gap-2">
-                        <button
-                          type="submit"
-                          className="bg-blue-600 w-8 h-8 text-white"
-                          title="Simpan Cicilan"
-                        >
-                          <i className="fa fa-save"></i>
-                        </button>
-                        <button
-                          className="bg-colorPrimary w-8 h-8 text-white"
-                          title="Tambah Cicilan"
-                          onClick={() => handleAddRow()}
-                        >
-                          <i className="fa fa-plus"></i>
-                        </button>
-                      </div>
+                        <i className="fa fa-save"></i>
+                      </button>
+                      <button
+                        className="bg-colorPrimary w-8 h-8 text-white"
+                        title="Tambah Cicilan"
+                        onClick={() => handleAddRow()}
+                      >
+                        <i className="fa fa-plus"></i>
+                      </button>
                     </div>
+                  </div>
                 </form>
               </div>
             </div>

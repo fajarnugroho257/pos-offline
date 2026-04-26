@@ -4,6 +4,8 @@ import api from "../utilities/axiosInterceptor";
 import Booking from "./Booking";
 import { swalConfirm } from "../utilities/Swal";
 import PilihPrintDraft from "../utilities/PilihPrintDraft";
+import isOnline from "../utilities/isOnline";
+import { findCartById, updatePartialByCartId } from "../services/db";
 
 function ModalAddDraf({
   close,
@@ -57,23 +59,33 @@ function ModalAddDraf({
   }, []);
   //
   const getGrandTotalByCartId = async () => {
-    try {
-      //fetching
-      const params = { cart_id: cart_id };
-      const response = await api.post("/get-cart-subtotal-draft", params, {
-        headers: {
-          Authorization: `Bearer ${token}`, // Sisipkan token di header
-        },
-      });
-      if (response.status === 200) {
-        //get response data
-        const draftItem = await response.data.total_item;
-        setTotItem(draftItem);
-      } else {
-        console.log(response.status);
+    if (isOnline) {
+      try {
+        //fetching
+        const params = { cart_id: cart_id };
+        const response = await api.post("/get-cart-subtotal-draft", params, {
+          headers: {
+            Authorization: `Bearer ${token}`, // Sisipkan token di header
+          },
+        });
+        if (response.status === 200) {
+          //get response data
+          const draftItem = await response.data.total_item;
+          setTotItem(draftItem);
+        } else {
+          console.log(response.status);
+        }
+      } catch (err) {
+        console.log(err);
       }
-    } catch (err) {
-      console.log(err);
+    } else {
+      // get data offline
+      const detailData = await findCartById(cart_id);
+      const sortedCart = detailData.sortedCart;
+      const totalQty = sortedCart.reduce((sum, item) => {
+        return sum + parseInt(item.cart_qty);
+      }, 0);
+      setTotItem(totalQty);
     }
   };
   //
@@ -85,62 +97,75 @@ function ModalAddDraf({
     );
     if (result.isConfirmed) {
       const toastId = toast.loading("Sending data...");
-      try {
-        const response = await api.post("/create-draft-pembelian", form, {
-          headers: {
-            Authorization: `Bearer ${token}`, // Sisipkan token di header
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-        });
-        //
-        // console.log(response.data);
-        if (response.data.success) {
-          // delete cart
-          close();
-          closeModalPembayaran();
-          deleteCart();
-          toast.update(toastId, {
-            render: `${response.data.message}`,
-            type: "success",
-            isLoading: false,
-            autoClose: 2000,
+      if (isOnline) {
+        try {
+          const response = await api.post("/create-draft-pembelian", form, {
+            headers: {
+              Authorization: `Bearer ${token}`, // Sisipkan token di header
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
           });
-          // cetak
-          PilihPrintDraft(
-            response.data.cartData,
-            response.data.cartDraft,
-          )
-        } else {
+          //
+          // console.log(response.data);
+          if (response.data.success) {
+            // delete cart
+            close();
+            closeModalPembayaran();
+            deleteCart();
+            toast.update(toastId, {
+              render: `${response.data.message}`,
+              type: "success",
+              isLoading: false,
+              autoClose: 2000,
+            });
+            // cetak
+            PilihPrintDraft(response.data.cartData, response.data.cartDraft);
+          } else {
+            toast.update(toastId, {
+              render: `${response.data.message}`,
+              type: "error",
+              isLoading: false,
+              autoClose: 2000,
+            });
+          }
+        } catch (error) {
+          const errors = error.response?.data?.errors;
+          let errorMessages;
+          if (errors) {
+            // Jika errors ada, buat string gabungan dari pesan error
+            errorMessages = Object.keys(errors)
+              .map((field) => `${field}: ${errors[field].join(", ")}`)
+              .join("\n");
+
+            console.log(errorMessages);
+          } else {
+            // Jika errors tidak ada
+            errorMessages = "No errors found in the response.";
+            console.log("No errors found in the response.");
+          }
           toast.update(toastId, {
-            render: `${response.data.message}`,
+            render: `Error sending data ! \n${errorMessages}`,
             type: "error",
             isLoading: false,
-            autoClose: 2000,
+            autoClose: 5000,
           });
+          console.error(`Error sending data ! \n${errorMessages}`);
         }
-      } catch (error) {
-        const errors = error.response?.data?.errors;
-        let errorMessages;
-        if (errors) {
-          // Jika errors ada, buat string gabungan dari pesan error
-          errorMessages = Object.keys(errors)
-            .map((field) => `${field}: ${errors[field].join(", ")}`)
-            .join("\n");
-
-          console.log(errorMessages);
-        } else {
-          // Jika errors tidak ada
-          errorMessages = "No errors found in the response.";
-          console.log("No errors found in the response.");
-        }
+      } else {
+        // simpan offline
+        console.log(cart_id);
+        console.log(form);
+        await updatePartialByCartId(cart_id, form);
+        close();
+        closeModalPembayaran();
+        deleteCart();
         toast.update(toastId, {
-          render: `Error sending data ! \n${errorMessages}`,
-          type: "error",
+          render: "berhasil membuat draft penjualan",
+          type: "success",
           isLoading: false,
-          autoClose: 5000,
+          autoClose: 2000,
         });
-        console.error(`Error sending data ! \n${errorMessages}`);
       }
     }
   };

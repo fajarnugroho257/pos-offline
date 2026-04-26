@@ -7,7 +7,8 @@ import ModalAddDraf from "./ModalAddDraft";
 import ModalAddHutang from "./ModalAddHutang";
 import { swalError } from "../utilities/Swal";
 import isOnline from "../utilities/isOnline";
-import { dbPromise, updatePartialByCartId } from "../services/db";
+import { dbPromise, findCartById, updatePartialByCartId } from "../services/db";
+import dayjs from "dayjs";
 
 function ModalPembayaran({
   isOpen,
@@ -90,6 +91,16 @@ function ModalPembayaran({
           console.log(response.status);
         }
       } else {
+        const detailOffline = await findCartById(cart_id);
+        console.log(detailOffline);
+        setValInputPelanggan(detailOffline.trans_pelanggan ?? "");
+        const draft_uang_muka = Number(detailOffline.draft_uang_muka ?? 0);
+        setKembalian(draft_uang_muka - parseInt(ttlBayar));
+        setValInputBayar(draft_uang_muka.toString());
+        // tanggal
+        setSdraftStart(detailOffline.draft_start ?? null);
+        setdraftEnd(detailOffline.draft_end ?? null);
+        setdraftNote(detailOffline.draft_note ?? null);
         // offline
         setTagihan(ttlBayar);
       }
@@ -116,31 +127,6 @@ function ModalPembayaran({
   useEffect(() => {
     getGrandTotalByCartId();
   }, []);
-  // const result = number.join("");
-
-  // const handleNumber = (value) => {
-  //   if (value === "c") {
-  //     setNumber([]);
-  //     setKembalian(0);
-  //   } else {
-  //     // console.log(number.length);
-  //     if (value !== "x") {
-  //       if (number.length < 1 && value === 0) {
-  //       } else {
-  //         var dataInput = [...number, value];
-  //         setNumber(dataInput);
-  //         setKembalian(dataInput.join("") - tagihan);
-  //       }
-  //     }
-  //   }
-  // };
-
-  // const deleteItem = () => {
-  //   var dataInput = number.filter((item, i) => i !== number.length - 1);
-  //   setNumber(dataInput);
-  //   setKembalian(dataInput.join("") - tagihan);
-  // };
-  //
 
   // Fungsi untuk memformat angka menjadi format Rupiah
   const formatRupiah = (value) => {
@@ -256,7 +242,7 @@ function ModalPembayaran({
       );
       return;
     }
-    if (kembalian < 0) {
+    if (kembalian < 0 || valInputBayar.length === 0) {
       swalError(
         "Opps.!",
         "Pembayaran Kurang dari Tagihan, Atau pilih hutang / draft",
@@ -333,11 +319,12 @@ function ModalPembayaran({
       // simpan offline
       const params = {
         trans_total: tagihan,
-        trans_date: "2026-04-20",
+        trans_date: dayjs().format("YYYY-MM-DD HH:mm:ss"),
         trans_bayar: valInputBayar,
         trans_kembalian: kembalian,
         trans_pelanggan: valInputPelanggan,
         trans_st: "yes",
+        cart_st: "yes",
       };
       await updatePartialByCartId(cart_id, params);
       const db = await dbPromise;

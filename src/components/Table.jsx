@@ -49,7 +49,7 @@ const Table = ({
             <th className="px-2 py-1 md:py-3 border border-gray-200">
               Gros Min Pembelian
             </th>
-            <th className="px-2 py-1 md:py-3 border border-gray-200">AKsi</th>
+            {/* <th className="px-2 py-1 md:py-3 border border-gray-200">AKsi</th> */}
           </tr>
         </thead>
         <tbody>
@@ -111,7 +111,7 @@ const Table = ({
                   <td className="px-2 py-1 border border-gray-200 text-center">
                     {item.barang_grosir_pembelian}
                   </td>
-                  <td className="px-2 py-1 border border-gray-200 text-center">
+                  {/* <td className="px-2 py-1 border border-gray-200 text-center">
                     <div className="flex gap-1">
                       <Link
                         onClick={() => detailData(item.id)}
@@ -126,7 +126,7 @@ const Table = ({
                         <i className="fa fa-trash my-2 text-red-500 hover:text-red-400"></i>
                       </Link>
                     </div>
-                  </td>
+                  </td> */}
                 </tr>
               );
             })

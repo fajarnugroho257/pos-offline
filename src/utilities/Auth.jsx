@@ -6,6 +6,7 @@ export const setToken = (data) => {
   localStorage.setItem("toko_pusat_id", data.toko_pusat_id);
   localStorage.setItem("toko_pusat", data.toko_pusat);
   localStorage.setItem("name", data.user.name);
+  localStorage.setItem("user_id", data.user.user_id);
 };
 
 export const getToken = () => {
@@ -26,4 +27,8 @@ export const getPusat = () => {
 
 export const getCabang = () => {
   return localStorage.getItem("cabang_nama");
+};
+
+export const getUserId = () => {
+  return localStorage.getItem("user_id");
 };

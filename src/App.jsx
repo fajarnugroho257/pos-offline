@@ -19,7 +19,7 @@ import Barang from "./page/Barang";
 function App() {
   const location = useLocation();
   const uri = location.pathname;
-  console.log(uri);
+  // console.log(uri);
   const status = uri === "/login" || uri === "/" ? "hidden" : "";
   return (
     <div className="h-screen">

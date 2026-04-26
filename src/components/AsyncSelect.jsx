@@ -135,30 +135,49 @@ const AsyncSelect = ({ sendDataToParent, barcodeInputRef }) => {
     }
     barcodeTimer.current = setTimeout(async () => {
       if (inputValue.length < 6) return;
-      try {
-        const cabang_id = localStorage.getItem("cabang_id");
-        const response = await api.get(
-          `/api-barcode-data-barang-cabang?cabang_id=${cabang_id}&query=${inputValue}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
+      if (isOnline) {
+        try {
+          const cabang_id = localStorage.getItem("cabang_id");
+          const response = await api.get(
+            `/api-barcode-data-barang-cabang?cabang_id=${cabang_id}&query=${inputValue}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
             },
-          },
-        );
-        if (Object.keys(response.data).length !== 0) {
-          sendDataToParent(response.data.id);
-        } else {
-          const audio = new Audio("sounds/new-error-sound.mp3");
-          audio.volume = 1;
-          audio.play();
-          toast.error("Data tidak ditemukan.", {
-            autoClose: 3000,
-          });
+          );
+          if (Object.keys(response.data).length !== 0) {
+            sendDataToParent(response.data.id);
+          } else {
+            const audio = new Audio("sounds/new-error-sound.mp3");
+            audio.volume = 1;
+            audio.play();
+            toast.error("Data tidak ditemukan.", {
+              autoClose: 3000,
+            });
+          }
+          serValBarcode("");
+        } catch (err) {
+          console.log(err);
         }
-        serValBarcode("");
-      } catch (err) {
-        console.log(err);
+      } else {
+        try {
+          const cabang_id = localStorage.getItem("cabang_id");
+          const allData = await getAllBarang();
+          const filtered = allData.filter((item) => {
+            return (
+              item.cabang_id === cabang_id &&
+              item.barang_barcode?.includes(inputValue)
+            );
+          });
+          sendDataToParent(filtered[0].barang_cabang_id);
+        } catch (error) {
+          console.error(error);
+          alert("Error ambil data local");
+        } finally {
+          setIsLoading(false);
+        }
       }
     }, 200);
   };
@@ -217,6 +236,12 @@ const AsyncSelect = ({ sendDataToParent, barcodeInputRef }) => {
         >
           Manual
         </button>
+        <div
+          className={`font-poppins ${isOnline ? "bg-green-500" : "bg-red-500"} flex items-center px-2 gap-1 text-white`}
+        >
+          <i className="fa fa-wifi text-white "></i>{" "}
+          {isOnline ? "Online" : "Offline"}{" "}
+        </div>
       </div>
       {stManual && (
         <Select

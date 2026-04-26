@@ -12,11 +12,18 @@ import {
   swalSuccessAutoClose,
 } from "../utilities/Swal";
 import ModalListCart from "../components/ModalListCart";
+import isOnline from "../utilities/isOnline";
+import {
+  findCartBooking,
+  findCartById,
+  updatePartialByCartId,
+} from "../services/db";
 
 const DraftPenjualan = () => {
   const navigate = useNavigate();
   const [tab, setTab] = useState("draft");
   const [dataTransaksi, setDataTransaksi] = useState([]);
+  const [dataTransaksiOnline, setDataTransaksiOnline] = useState([]);
   const [stModalList, setStModalList] = useState(false);
   const [cartId, setCartId] = useState(null);
   const [tanggal, setTanggal] = useState({
@@ -31,25 +38,36 @@ const DraftPenjualan = () => {
   // get data
   const getDataTransaksi = async (start, end) => {
     swalLoading("Silahkan tunggu...", "Sedang mendapatkan data");
-    try {
-      const params = { start: start, end: end };
-      const token = getToken();
-      const response = await api.post(
-        `list-transaksi-data-barang-cabang-booking`,
-        params,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
+    if (isOnline) {
+      try {
+        const params = { start: start, end: end };
+        const token = getToken();
+        const response = await api.post(
+          `list-transaksi-data-barang-cabang-booking`,
+          params,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
           },
-        },
-      );
-      setDataTransaksi(response.data.data || []);
+        );
+        console.log(response.data.data);
+        setDataTransaksi(response.data.data || []);
+        swalSuccessAutoClose("Berhasil", "Data berhasil didapatkan", 500);
+      } catch (error) {
+        swalError(
+          "Opps..!",
+          error?.response?.data?.message ||
+            error.message ||
+            "Terjadi kesalahan",
+        );
+      }
+    } else {
+      // get offline
+      const cartBooking = await findCartBooking();
+      setDataTransaksiOnline(cartBooking);
       swalSuccessAutoClose("Berhasil", "Data berhasil didapatkan", 500);
-    } catch (error) {
-      swalError(
-        "Opps..!",
-        error?.response?.data?.message || error.message || "Terjadi kesalahan",
-      );
+      console.log(cartBooking);
     }
   };
 
@@ -66,7 +84,7 @@ const DraftPenjualan = () => {
       // } else {
       //   tanggalFix = parsed;
       // }
-      // 
+      //
       tanggalFix = JSON.parse(savedTanggal);
     } else {
       tanggalFix = getDefaultTanggal();
@@ -74,7 +92,7 @@ const DraftPenjualan = () => {
     }
     setTanggal(tanggalFix);
     getDataTransaksi(tanggalFix.start, tanggalFix.end);
-  }
+  };
 
   useEffect(() => {
     reloadGetDataTransaksi();
@@ -105,21 +123,40 @@ const DraftPenjualan = () => {
     );
     if (result.isConfirmed) {
       swalLoading("Silahkan tunggu...", "Sedang memproses data");
-      // const toastDraft = toast.loading("Silahkan Tunggu...");
-      try {
-        let params = { cart_id: cart_id };
-        const response = await api.post("change-status-by-cart-id", params, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (response.data.success) {
-          navigate("/pos");
-          swalSuccess("Berhasil", "Silahkan untuk melakukan transaksi kembali");
-        } else {
-          swalError("error", response.data.message);
+      if (isOnline) {
+        try {
+          let params = { cart_id: cart_id };
+          const response = await api.post("change-status-by-cart-id", params, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          if (response.data.success) {
+            navigate("/pos");
+            swalSuccess(
+              "Berhasil",
+              "Silahkan untuk melakukan transaksi kembali",
+            );
+          } else {
+            swalError("error", response.data.message);
+          }
+        } catch (error) {
+          swalError(
+            "Opps..!",
+            error?.response?.data?.message ||
+              error.message ||
+              "Terjadi kesalahan",
+          );
         }
-      } catch (error) {}
+      } else {
+        const detailOffline = await findCartById(cart_id);
+        const params = {
+          cart_st: "draft",
+        };
+        await updatePartialByCartId(cart_id, params);
+        navigate("/pos");
+        swalSuccess("Berhasil", "Silahkan untuk melakukan transaksi kembali");
+      }
     }
   };
 
@@ -238,7 +275,8 @@ const DraftPenjualan = () => {
                 type="submit"
                 className="bg-colorPrimary hover:bg-colorPrimaryHover text-white px-3 rounded-sm text-xs md:text-sm lg:text-base"
               >
-                <i className="fa fa-search"></i> <span className="hidden md:inline">Cari</span>
+                <i className="fa fa-search"></i>{" "}
+                <span className="hidden md:inline">Cari</span>
               </button>
             </div>
           </form>
@@ -249,24 +287,34 @@ const DraftPenjualan = () => {
                 <th className="px-2 py-1 md:py-3 border border-gray-200">
                   Date Create
                 </th>
-                <th className="px-2 py-1 md:py-3 border border-gray-200">Cart ID</th>
+                <th className="px-2 py-1 md:py-3 border border-gray-200">
+                  Cart ID
+                </th>
                 <th className="px-2 py-1 md:py-3 border border-gray-200">
                   Buat - Kirim
                 </th>
-                <th className="px-2 py-1 md:py-3 border border-gray-200">Pelanggan</th>
+                <th className="px-2 py-1 md:py-3 border border-gray-200">
+                  Pelanggan
+                </th>
                 <th className="px-2 py-1 md:py-3 border border-gray-200 bg-green-200">
                   Ttl Belanja
                 </th>
-                <th className="px-2 py-1 md:py-3 border border-gray-200">Uang Muka</th>
+                <th className="px-2 py-1 md:py-3 border border-gray-200">
+                  Uang Muka
+                </th>
                 <th className="px-2 py-1 md:py-3 border border-gray-200 bg-red-200">
                   Kekurangan
                 </th>
-                <th className="px-2 py-1 md:py-3 border border-gray-200">Note</th>
-                <th className="px-2 py-1 md:py-3 border border-gray-200">Aksi</th>
+                <th className="px-2 py-1 md:py-3 border border-gray-200">
+                  Note
+                </th>
+                <th className="px-2 py-1 md:py-3 border border-gray-200">
+                  Aksi
+                </th>
               </tr>
             </thead>
             <tbody>
-              {dataTransaksi && dataTransaksi.length > 0 ? (
+              {isOnline && dataTransaksi && dataTransaksi.length > 0 ? (
                 dataTransaksi.map((val, index) => {
                   ttlUangMuka += parseInt(val.cart_draft.draft_uang_muka);
                   ttlTagihan += parseInt(val.cart_draft.draft_uang_tagihan);
@@ -304,6 +352,58 @@ const DraftPenjualan = () => {
                       </td>
                       <td className="px-2 py-1 md:py-3 border border-gray-200">
                         {val.cart_draft.draft_note}
+                      </td>
+                      <td className="px-2 py-3 border border-gray-200 text-base md:text-xl text-center">
+                        <Link
+                          onClick={() => handleListCart(val.cart_id)}
+                          title="Lihat Data Barang"
+                          className="fa fa-eye text-colorPrimary md:mr-3"
+                        ></Link>
+                        <Link
+                          onClick={() => hanldeTransaksi(val.cart_id)}
+                          title="Ubah Data / Lanjutkan Transaksi"
+                          className="fa fa-shopping-cart text-red-600 md:mr-3"
+                        ></Link>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : dataTransaksiOnline && dataTransaksiOnline.length > 0 ? (
+                dataTransaksiOnline.map((val, index) => {
+                  ttlUangMuka += parseInt(val.draft_uang_muka);
+                  ttlTagihan += parseInt(val.ttlBayar);
+                  ttlKekurangan += parseInt(val.draft_uang_sisa);
+                  return (
+                    <tr
+                      key={index}
+                      className="border border-gray-200 hover:bg-gray-50"
+                    >
+                      <td className="px-2 py-1 md:py-3 border border-gray-200 text-center">
+                        {index + 1}
+                      </td>
+                      <td className="px-2 py-1 md:py-3 border border-gray-200 text-center"></td>
+                      <td className="px-2 py-1 md:py-3 border border-gray-200 text-center">
+                        {val.cart_id}
+                      </td>
+                      <td className="px-2 py-1 md:py-3 border border-gray-200 text-center">
+                        {formaOnlytDate(val.draft_start)}
+                        {" - "}
+                        {formaOnlytDate(val.draft_end)}
+                      </td>
+                      <td className="px-2 py-1 md:py-3 border border-gray-200 text-center">
+                        {val.trans_pelanggan}
+                      </td>
+                      <td className="px-2 py-1 md:py-3 border border-gray-200 text-right bg-green-200">
+                        {RupiahFormat(val.ttlBayar)}
+                      </td>
+                      <td className="px-2 py-1 md:py-3 border border-gray-200 text-right">
+                        {RupiahFormat(val.draft_uang_muka)}
+                      </td>
+                      <td className="px-2 py-1 md:py-3 border border-gray-200 text-right bg-red-200">
+                        {RupiahFormat(val.draft_uang_sisa)}
+                      </td>
+                      <td className="px-2 py-1 md:py-3 border border-gray-200">
+                        {val.draft_note}
                       </td>
                       <td className="px-2 py-3 border border-gray-200 text-base md:text-xl text-center">
                         <Link
