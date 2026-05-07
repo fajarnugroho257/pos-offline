@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "../utilities/axiosInterceptor";
-import { getToken } from "../utilities/Auth";
+import { getCabangId, getToken } from "../utilities/Auth";
 import "dayjs/locale/id";
 import { ToastContainer } from "react-toastify";
 import { Link } from "react-router-dom";
@@ -21,6 +21,8 @@ import isOnline from "../utilities/isOnline";
 // import ModalStok from "../components/barang/ModalStok";
 
 const Barang = () => {
+  // cabang ID
+  const cabang_id = getCabangId();
   // state
   const [data, setData] = useState([]);
   const [page, setPage] = useState(1);
@@ -65,8 +67,10 @@ const Barang = () => {
     } else {
       const db = await dbPromise;
       const datas = await db.getAll("barangMaster");
-      const filtered = datas.filter((item) =>
-        item.barang_nama?.toLowerCase().includes(keyword),
+      const filtered = datas.filter(
+        (item) =>
+          item.barang_nama?.toLowerCase().includes(keyword) &&
+          item.cabang_id.toString() === cabang_id.toString(),
       );
       const pagination = paginate(filtered, pageNumber, 50);
       setData(pagination.data);
@@ -187,7 +191,7 @@ const Barang = () => {
       const barangs = response.data || [];
       const tx = db.transaction("barangMaster", "readwrite");
       const store = tx.objectStore("barangMaster");
-      console.log(barangs.length);
+      // console.log(barangs.length);
       for (const barang of barangs) {
         await store.put(barang);
       }

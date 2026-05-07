@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from "react";
 import iconPos from "../assets/img/pos.png";
 import iconLogout from "../assets/img/logout.png";
 import iconReport from "../assets/img/report.png";
+import iconDatabase from "../assets/img/database.png";
 import iconSettings from "../assets/img/settings.png";
 import Logout from "../utilities/Logount";
 import api from "../utilities/axiosInterceptor";
@@ -114,9 +115,9 @@ function Pembayaran() {
               <div onClick={() => handleSubmit("barang")}>
                 <div className="mx-auto w-24 h-[110px] md:w-28 md:h-40 lg:w-44 lg:h-56 bg-colorPrimary rounded-lg shadow-lg flex justify-center items-center cursor-pointer hover:bg-colorPrimaryHover">
                   <img
-                    src={iconSettings}
-                    className="w-4/6"
-                    alt="iconSettings"
+                    src={iconDatabase}
+                    className="w-[60px] md:w-[70px] lg:[80px] xl:w-[90px]"
+                    alt="iconDatabase"
                   />
                 </div>
                 <h3 className="text-center mt-3 text-gray-800 font-poppins font-semibold text-sm md:text-lg lg:text-2xl">

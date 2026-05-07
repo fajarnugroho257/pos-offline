@@ -7,13 +7,20 @@ import "dayjs/locale/id";
 import { Link } from "react-router-dom";
 import ModalDetailHutang from "../components/ModalDetailHutang";
 import {
+  swalConfirm,
   swalError,
   swalLoading,
+  swalSuccess,
   swalSuccessAutoClose,
 } from "../utilities/Swal";
 import ModalListCartHutang from "../components/ModalListCartHutang";
 import isOnline from "../utilities/isOnline";
-import { findCartHutang } from "../services/db";
+import {
+  deleteById,
+  deleteDataTransactionOffline,
+  findCartHutang,
+} from "../services/db";
+import ModalShowHutangOffline from "../components/ModalShowHutangOffline";
 
 const Hutang = () => {
   // state
@@ -55,7 +62,7 @@ const Hutang = () => {
       const cartHutang = await findCartHutang();
       setDataTransaksiOffline(cartHutang);
       swalSuccessAutoClose("Berhasil", "Data berhasil didapatkan", 500);
-      // console.log(cartHutang);
+      console.log(cartHutang);
     }
   };
 
@@ -152,27 +159,66 @@ const Hutang = () => {
   };
 
   //
-  const formaOnlytDate = (dateString) => {
-    const date = dayjs(dateString).locale("id");
-    return date.format("DD MMM YYYY");
-  };
-  //
   let ttlUangMuka = 0;
   let ttlTagihan = 0;
   let ttlKekurangan = 0;
+  //
+  const handleDeleteOffline = async () => {
+    const result = await swalConfirm(
+      "Yakin ?",
+      "Apakah Anda yakin ingin menghapus semua data hutang..?",
+    );
+    if (result.isConfirmed) {
+      const deleteOffline = await deleteDataTransactionOffline("hutang");
+      if (deleteOffline.success) {
+        swalSuccess(
+          "Suksess",
+          deleteOffline.message + " " + deleteOffline.deleted,
+        );
+        await reloadGetDataTransaksi();
+      } else {
+        swalError("Opps..!", deleteOffline.message);
+      }
+    }
+  };
+
+  const handleDelete = async (cart_id) => {
+    const result = await swalConfirm(
+      "Apakah anda yakin akan menghapus data ini? ",
+      "Silahkan pastikan terlebih dahulu",
+    );
+    if (result.isConfirmed) {
+      const detail = await deleteById(cart_id);
+      swalSuccess("Suksess", detail.message);
+      reloadGetDataTransaksi();
+    }
+  };
+
+  const [modalOffline, stModalOffline] = useState(false);
+  const handleShowModalOffline = () => {
+    stModalOffline(!modalOffline);
+  };
 
   return (
     <div className="">
-      <div className="h-full overflow-auto px-4 py-12 md:py-14 md:px-10">
-        <div className="flex justify-end">
-          <div className="flex justify-end">
-            <Link
-              to={"/dashboard"}
-              className="font-poppins rounded-sm bg-colorPrimary text-white px-2 py-1 text-xs md:text-sm"
-            >
-              <i className="fa fa-arrow-left"></i> Home
-            </Link>
+      <div className="h-full overflow-auto px-4 py-12 md:py-14 md:px-5">
+        <div className="flex justify-between">
+          <div
+            className={`font-poppins ${isOnline ? "bg-green-500" : "bg-red-500"} flex items-center px-2 gap-1 text-white`}
+          >
+            <i className="fa fa-wifi text-white text-xs"></i>{" "}
+            {isOnline ? "Online" : "Offline"}{" "}
+            <small className="text-white hidden md:block">
+              {!isOnline &&
+                "(data anda tersedia hanya yang di local storage anda)"}
+            </small>
           </div>
+          <Link
+            to={"/dashboard"}
+            className="font-poppins rounded-sm bg-colorPrimary text-white px-2 py-1 text-xs md:text-sm"
+          >
+            <i className="fa fa-arrow-left"></i> Home
+          </Link>
         </div>
         <div className="grid grid-cols-3 gap-4 text-center font-poppins">
           <Link
@@ -197,7 +243,28 @@ const Hutang = () => {
             Draft Penjualan
           </Link>
         </div>
-        <form onSubmit={handleCari}>
+        <form
+          onSubmit={handleCari}
+          className="flex justify-between items-center"
+        >
+          <div className="flex gap-1">
+            <div className="bg-red-500 text-white px-2 py-1">
+              <button type="button" onClick={handleDeleteOffline}>
+                <i className="fa fa-trash"></i>{" "}
+                <small className="text-white hidden lg:inline">
+                  {!isOnline && " Hapus Hutang Offline"}
+                </small>
+              </button>
+            </div>
+            <div className="bg-colorPrimary text-white px-2 py-1">
+              <button type="button" onClick={handleShowModalOffline}>
+                <i className="fa fa-upload"></i>{" "}
+                <small className="text-white hidden lg:inline">
+                  {!isOnline && " Sync Hutang Offline"}
+                </small>
+              </button>
+            </div>
+          </div>
           <div className="my-3 flex gap-1 md:gap-2 justify-end">
             <input
               type="date"
@@ -253,6 +320,11 @@ const Hutang = () => {
                 Kekurangan
               </th>
               <th className="px-2 py-1 md:py-3 border border-gray-200">Note</th>
+              {!isOnline && (
+                <th className="px-2 py-1 md:py-3 border border-gray-200">
+                  Upload
+                </th>
+              )}
               <th className="px-2 py-1 md:py-3 border border-gray-200">Aksi</th>
             </tr>
           </thead>
@@ -308,7 +380,9 @@ const Hutang = () => {
               })
             ) : dataTransaksiOffline && dataTransaksiOffline.length > 0 ? (
               dataTransaksiOffline.map((val, index) => {
-                ttlUangMuka += parseInt(val.draft_uang_muka);
+                let uangMuka =
+                  val.draft_uang_muka.length === 0 ? 0 : val.draft_uang_muka;
+                ttlUangMuka += parseInt(uangMuka);
                 ttlTagihan += parseInt(val.ttlBayar);
                 ttlKekurangan += parseInt(val.draft_uang_sisa);
                 return (
@@ -320,16 +394,11 @@ const Hutang = () => {
                       {index + 1}
                     </td>
                     <td className="px-2 py-1 md:py-3 border border-gray-200 text-center">
-                      {formaOnlytDate(val.draft_start)}
+                      {formatDate(val.created_at)}
                     </td>
                     <td className="px-2 py-1 md:py-3 border border-gray-200 text-center">
                       {val.cart_id}
                     </td>
-                    {/* <td className="px-2 py-1 md:py-3 border border-gray-200 text-center">
-                      {formaOnlytDate(val.draft_start)}
-                      {" - "}
-                      {formaOnlytDate(val.draft_end)}
-                    </td> */}
                     <td className="px-2 py-1 md:py-3 border border-gray-200 text-center">
                       {val.trans_pelanggan}
                     </td>
@@ -345,17 +414,40 @@ const Hutang = () => {
                     <td className="px-2 py-1 md:py-3 border border-gray-200">
                       {val.draft_note}
                     </td>
+                    {!isOnline && (
+                      <td className="px-2 py-1 md:py-3 border border-gray-200 text-center">
+                        {val.upload_st === "no" ? (
+                          <span className="text-white p-2 bg-red-500">NO</span>
+                        ) : (
+                          <span className="text-white p-2 bg-green-500">
+                            YES
+                          </span>
+                        )}
+                      </td>
+                    )}
                     <td className="px-2 py-3 border border-gray-200 text-base md:text-xl text-center">
                       <Link
                         onClick={() => handleListCart(val.cart_id)}
                         title="Lihat Data Barang"
-                        className="fa fa-eye text-colorPrimary md:mr-3"
-                      ></Link>
+                        className="px-2 py-1 text-white bg-amber-500 hover:bg-amber-600 rounded"
+                      >
+                        <i className="fa fa-eye"></i>
+                      </Link>
                       <Link
                         onClick={() => handleNota(val.cart_id)}
-                        title="Ubah Data / Lanjutkan Transaksi"
-                        className="fa fa-shopping-cart text-red-600 md:mr-3"
-                      ></Link>
+                        title="Bayar hutang"
+                        className="px-2 py-1 mx-1 text-white bg-green-500 hover:bg-green-600 rounded"
+                      >
+                        <i className="fa fa-money-bill-alt"></i>
+                      </Link>
+                      {!isOnline && (
+                        <button
+                          onClick={() => handleDelete(val.cart_id)}
+                          className="px-2 py-1 text-white bg-red-500 hover:bg-red-600 rounded"
+                        >
+                          <i className="fa fa-trash"></i>
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );
@@ -363,7 +455,7 @@ const Hutang = () => {
             ) : (
               <tr>
                 <td
-                  colSpan="9"
+                  colSpan="10"
                   className="border border-gray-200 hover:bg-gray-50 text-center"
                 >
                   Data tidak ditemukan
@@ -388,6 +480,9 @@ const Hutang = () => {
               </td>
               <td className="px-2 py-1 md:py-3 border border-gray-200 text-right"></td>
               <td className="px-2 py-1 md:py-3 border border-gray-200 text-right"></td>
+              {!isOnline && (
+                <td className="px-2 py-1 md:py-3 border border-gray-200 text-right"></td>
+              )}
             </tr>
           </tbody>
         </table>
@@ -405,6 +500,13 @@ const Hutang = () => {
           isOpen={true}
           onClose={handleListCart}
           cartId={cartId}
+        />
+      )}
+      {modalOffline && (
+        <ModalShowHutangOffline
+          isOpen={modalOffline}
+          closeModal={handleShowModalOffline}
+          reloadDataOnline={reloadGetDataTransaksi}
         />
       )}
     </div>

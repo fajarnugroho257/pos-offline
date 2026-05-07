@@ -1,5 +1,8 @@
 import { openDB } from "idb";
+import { getCabangId } from "../utilities/Auth";
+import dayjs from "dayjs";
 
+const cabangId = getCabangId();
 export const dbPromise = openDB("pos-db", 2, {
   upgrade(db) {
     // tabel transaksi
@@ -38,7 +41,6 @@ export const saveOrUpdateTransaction = async (data) => {
     };
     await store.put(updated);
   } else {
-    console.log("aa");
     // ✅ insert baru
     await store.add(data);
   }
@@ -74,17 +76,69 @@ export const findBarang = async (barang_cabang_id) => {
 export const findCartDraft = async () => {
   const db = await dbPromise;
   const alldatas = await db.getAll("transactions");
-  return alldatas.find((item) => item.cart_st == "draft");
+  return alldatas.find(
+    (item) => item.cart_st === "draft" && item.cabang_id === cabangId,
+  );
 };
 
-export const listPembayaran = async () => {
+export const listPembayaran = async (cart_st) => {
   const db = await dbPromise;
   const alldatas = await db.getAll("transactions");
 
   const filtered = alldatas.filter((item) => {
-    return item.cart_st === "yes";
+    return item.cart_st === cart_st && item.cabang_id === cabangId;
   });
   return filtered;
+};
+
+export const listPembayaranUploadSt = async () => {
+  const db = await dbPromise;
+  const alldatas = await db.getAll("transactions");
+
+  const filtered = alldatas.filter((item) => {
+    return item.cart_st === "yes" && item.upload_st === "no";
+  });
+  return filtered;
+};
+
+export const listAllTransaction = async () => {
+  const db = await dbPromise;
+  const alldatas = await db.getAll("transactions");
+
+  const filtered = alldatas.filter((item) => {
+    return item.upload_st === "no";
+  });
+  return filtered;
+};
+
+export const deleteDataTransactionOffline = async (status) => {
+  const db = await dbPromise;
+  const alldatas = await db.getAll("transactions");
+
+  const filtered = alldatas.filter((item) => {
+    return item.cart_st === status && item.upload_st === "yes";
+  });
+  if (filtered.length === 0) {
+    return {
+      success: false,
+      message:
+        "Silahkan untuk mengupload data terlebih dahulu untuk menghapus data..!",
+    };
+  }
+  // hapus
+  let jmlDeleted = 0;
+  for (const item of filtered) {
+    console.log(item.id);
+    const success = await db.delete("transactions", item.id);
+    if (success) {
+      jmlDeleted++;
+    }
+  }
+  return {
+    success: true,
+    deleted: jmlDeleted,
+    message: "Data berhasil dihapus sebanyak",
+  };
 };
 
 export const findCartBooking = async () => {
@@ -92,7 +146,7 @@ export const findCartBooking = async () => {
   const alldatas = await db.getAll("transactions");
 
   const filtered = alldatas.filter((item) => {
-    return item.cart_st === "booking";
+    return item.cart_st === "booking" && item.cabang_id === cabangId;
   });
   return filtered;
 };
@@ -102,7 +156,7 @@ export const findCartHutang = async () => {
   const alldatas = await db.getAll("transactions");
 
   const filtered = alldatas.filter((item) => {
-    return item.cart_st === "hutang";
+    return item.cart_st === "hutang" && item.cabang_id === cabangId;
   });
   return filtered;
 };
@@ -111,4 +165,69 @@ export const findCartById = async (cart_id) => {
   const db = await dbPromise;
   const alldatas = await db.getAll("transactions");
   return alldatas.find((item) => item.cart_id == cart_id);
+};
+
+export const deleteById = async (cart_id) => {
+  const db = await dbPromise;
+  const alldatas = await db.getAll("transactions");
+  const detail = alldatas.find((item) => item.cart_id == cart_id);
+  const success = await db.delete("transactions", detail.id);
+  return {
+    status: true,
+    message: "Data berhasil dihapus",
+  };
+};
+
+export const updateHutangLunas = async (cart_id) => {
+  const db = await dbPromise;
+  const tx = db.transaction("transactions", "readwrite");
+  const store = tx.objectStore("transactions");
+  const index = store.index("cart_id");
+
+  const existing = await index.get(cart_id);
+  console.log(existing);
+  if (!existing) return;
+
+  const detailCicilan = existing.detail_cicilan ?? [];
+  const detailTagihan = existing.draft_uang_sisa;
+  // total cicilan
+  const totalCicilan = detailCicilan.reduce(
+    (sum, row) => sum + (parseFloat(row.cicilan) || 0),
+    0,
+  );
+  if (totalCicilan < detailTagihan) {
+    return {
+      success: false,
+      message: "Maaf uang cicilan belum lunas",
+    };
+  }
+  // update
+  const kembalian = totalCicilan - detailTagihan;
+  console.log(detailCicilan);
+  console.log(totalCicilan);
+  console.log(detailTagihan);
+
+  const trans_bayar =
+    parseInt(totalCicilan) + parseInt(existing.draft_uang_muka);
+  const payload = {
+    trans_total: existing.ttlBayar,
+    trans_date: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+    trans_bayar: trans_bayar.toString(),
+    trans_kembalian: kembalian,
+    trans_pelanggan: existing.trans_pelanggan,
+    trans_st: "yes",
+    cart_st: "yes",
+  };
+
+  const updated = {
+    ...existing,
+    ...payload,
+  };
+
+  await store.put(updated);
+  await tx.done;
+  return {
+    success: true,
+    message: "Data berhasil dilunasi",
+  };
 };

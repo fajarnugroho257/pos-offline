@@ -67,9 +67,11 @@ const AsyncSelect = ({ sendDataToParent, barcodeInputRef }) => {
           // console.log(allData);
           // console.log(cabang_id);
           const filtered = allData.filter((item) => {
+            const keyword = input.toString().toLowerCase().trim();
             return (
               item.cabang_id == cabang_id &&
-              item.barang_nama?.toLowerCase().includes(input.toLowerCase())
+              (item.barang_nama?.toLowerCase().includes(keyword) ||
+                item.barang_barcode?.toString().toLowerCase().includes(keyword))
             );
           });
           // mapping ke format select
@@ -81,7 +83,7 @@ const AsyncSelect = ({ sendDataToParent, barcodeInputRef }) => {
           setOptions(data);
         } catch (error) {
           console.error(error);
-          alert("Error ambil data local");
+          alert("Error ambil data local, Manual");
         } finally {
           setIsLoading(false);
         }
@@ -162,19 +164,23 @@ const AsyncSelect = ({ sendDataToParent, barcodeInputRef }) => {
           console.log(err);
         }
       } else {
+        // 1234567890123
         try {
           const cabang_id = localStorage.getItem("cabang_id");
           const allData = await getAllBarang();
           const filtered = allData.filter((item) => {
+            const keyword = inputValue.toString().toLowerCase().trim();
             return (
-              item.cabang_id === cabang_id &&
-              item.barang_barcode?.includes(inputValue)
+              item.cabang_id == cabang_id &&
+              (item.barang_nama?.toLowerCase().includes(keyword) ||
+                item.barang_barcode?.toString().toLowerCase().includes(keyword))
             );
           });
           sendDataToParent(filtered[0].barang_cabang_id);
+          serValBarcode("");
         } catch (error) {
           console.error(error);
-          alert("Error ambil data local");
+          alert("Error ambil data local, Input Barcode");
         } finally {
           setIsLoading(false);
         }

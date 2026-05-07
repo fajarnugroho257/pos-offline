@@ -4,6 +4,8 @@ import { toast } from "react-toastify";
 import api from "../utilities/axiosInterceptor";
 import RupiahFormat from "../utilities/RupiahFormat";
 import { swalConfirm, swalError, swalSuccess } from "../utilities/Swal";
+import isOnline from "../utilities/isOnline";
+import { deleteById, findCartById } from "../services/db";
 
 function ModalDelete({ isOpen, cartId, stateTable, setStModalDelete }) {
   //
@@ -12,27 +14,50 @@ function ModalDelete({ isOpen, cartId, stateTable, setStModalDelete }) {
   //
   const detailNota = async () => {
     let params = { cart_id: cartId };
-    try {
-      const toastId = toast.loading("Getting data...");
-      const token = getToken();
-      const response = await api.post(`detail-nota`, params, {
-        headers: {
-          Authorization: `Bearer ${token}`, // Sisipkan token di header
-        },
-      });
-      if (response.data.success) {
+    const toastId = toast.loading("Getting data...");
+    if (isOnline) {
+      try {
+        const token = getToken();
+        const response = await api.post(`detail-nota`, params, {
+          headers: {
+            Authorization: `Bearer ${token}`, // Sisipkan token di header
+          },
+        });
+        if (response.data.success) {
+          toast.update(toastId, {
+            render: "Berhasil mendapatkan data nota",
+            type: "success",
+            isLoading: false,
+            autoClose: 1000,
+          });
+          setNotaData(response.data.data);
+          setTrans(response.data.transaksiCart);
+        }
+        // console.log(response.data.data);
+      } catch (error) {
         toast.update(toastId, {
-          render: "Berhasil mendapatkan data nota",
-          type: "success",
+          render: "",
+          type: "error",
           isLoading: false,
           autoClose: 1000,
         });
-        setNotaData(response.data.data);
-        setTrans(response.data.transaksiCart);
+        swalError(
+          "Opps..!",
+          error?.response?.data?.message ||
+            error.message ||
+            "Terjadi kesalahan",
+        );
       }
-      // console.log(response.data.data);
-    } catch (error) {
-      console.log(error);
+    } else {
+      const detail = await findCartById(cartId);
+      toast.update(toastId, {
+        render: "Berhasil mendapatkan data nota",
+        type: "success",
+        isLoading: false,
+        autoClose: 1000,
+      });
+      setNotaData(detail.sortedCart);
+      setTrans(detail);
     }
   };
 
@@ -49,23 +74,37 @@ function ModalDelete({ isOpen, cartId, stateTable, setStModalDelete }) {
       "Silahkan pastikan terlebih dahulu",
     );
     if (result.isConfirmed) {
-      try {
-        const token = getToken();
-        const params = { cart_id: cartId };
-        const response = await api.post(`delete-transaksi`, params, {
-          headers: {
-            Authorization: `Bearer ${token}`, // Sisipkan token di header
-          },
-        });
-        if (response.data.success) {
-          setStModalDelete(false);
-          stateTable();
-          swalSuccess("Sukses", response.data.message);
-        } else {
-          swalError("Opps..!", response.data.message);
+      if (isOnline) {
+        try {
+          const token = getToken();
+          const params = { cart_id: cartId };
+          const response = await api.post(`delete-transaksi`, params, {
+            headers: {
+              Authorization: `Bearer ${token}`, // Sisipkan token di header
+            },
+          });
+          if (response.data.success) {
+            setStModalDelete(false);
+            stateTable();
+            swalSuccess("Sukses", response.data.message);
+          } else {
+            swalError("Opps..!", response.data.message);
+          }
+          console.log(notaData);
+        } catch (error) {
+          swalError(
+            "Opps..!",
+            error?.response?.data?.message ||
+              error.message ||
+              "Terjadi kesalahan",
+          );
         }
-        console.log(notaData);
-      } catch (error) {}
+      } else {
+        const detail = await deleteById(cartId);
+        swalSuccess("Suksess", detail.message);
+        setStModalDelete(false);
+        stateTable();
+      }
     }
   };
 
@@ -102,20 +141,26 @@ function ModalDelete({ isOpen, cartId, stateTable, setStModalDelete }) {
                 <tbody>
                   {notaData.map((val, index) => {
                     grandTotal += parseInt(val.cart_subtotal);
+                    const isDiskon =
+                      val.cart_diskon != null
+                        ? val.cart_diskon === "yes"
+                        : val.barang_st_diskon === "yes";
                     return (
                       <tr
                         key={index}
-                        className={` ${val.cart_diskon === "yes" ? "text-red-500" : ""} border border-gray-200 hover:bg-gray-50`}
+                        className={` ${isDiskon ? "text-red-500" : ""} border border-gray-200 hover:bg-gray-50`}
                       >
                         <td className="px-6 py-3 border border-gray-200 text-center">
                           {index + 1}
                         </td>
                         <td className="px-6 py-3 border border-gray-200">
-                          {val.cart_nama}{" "}
-                          {val.cart_diskon === "yes" ? "(Grosir)" : ""}
+                          {val.cart_nama ?? val.barang_nama}{" "}
+                          {isDiskon ? "(Grosir)" : ""}
                         </td>
                         <td className="px-6 py-3 border border-gray-200 text-center">
-                          {RupiahFormat(val.cart_harga_jual)}
+                          {RupiahFormat(
+                            val.cart_harga_jual ?? val.barang_harga_jual,
+                          )}
                         </td>
                         <td className="px-6 py-3 border border-gray-200 text-right">
                           {val.cart_qty}

@@ -46,7 +46,7 @@ function ModalDetailNota({ isOpen, onClose, cartId }) {
       }
     } else {
       const detail = await findCartById(cartId);
-      console.log(detail);
+      // console.log(detail);
       toast.update(toastId, {
         render: "Berhasil mendapatkan data nota",
         type: "success",
@@ -118,17 +118,21 @@ function ModalDetailNota({ isOpen, onClose, cartId }) {
                   <tbody>
                     {notaData.map((val, index) => {
                       grandTotal += parseInt(val.cart_subtotal);
+                      const isDiskon =
+                        val.cart_diskon != null
+                          ? val.cart_diskon === "yes"
+                          : val.barang_st_diskon === "yes";
                       return (
                         <tr
                           key={index}
-                          className={` ${val.cart_diskon === "yes" ? "text-red-500" : ""} border border-gray-200 hover:bg-gray-50`}
+                          className={` ${isDiskon ? "text-red-500" : ""} border border-gray-200 hover:bg-gray-50`}
                         >
                           <td className="px-6 py-3 border border-gray-200 text-center">
                             {index + 1}
                           </td>
                           <td className="px-6 py-3 border border-gray-200">
                             {val.cart_nama ?? val.barang_nama}{" "}
-                            {val.cart_diskon === "yes" ? "(Grosir)" : ""}
+                            {isDiskon ? "(Grosir)" : ""}
                           </td>
                           <td className="px-6 py-3 border border-gray-200 text-center">
                             {RupiahFormat(

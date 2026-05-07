@@ -15,7 +15,11 @@ import {
   swalSuccessAutoClose,
 } from "../utilities/Swal";
 import isOnline from "../utilities/isOnline";
-import { findCartById } from "../services/db";
+import {
+  findCartById,
+  updateHutangLunas,
+  updatePartialByCartId,
+} from "../services/db";
 
 function ModalDetailHutang({ isOpen, onClose, cartId, loadData }) {
   //
@@ -53,11 +57,12 @@ function ModalDetailHutang({ isOpen, onClose, cartId, loadData }) {
     } else {
       const detail = await findCartById(cartId);
       console.log(detail);
+      const cicilanKosong = [];
       swalSuccessAutoClose("Berhasil", "Data berhasil didapatkan", 500);
       setNotaData(detail.sortedCart);
       setCartDraft(detail);
-      // setRows(response.data.cart_draft.tagihan_cicilan);
-      // setTagihan(parseInt(response.data.cart_draft.draft_uang_sisa));
+      setRows(detail.detail_cicilan ?? cicilanKosong);
+      setTagihan(parseInt(detail.draft_uang_sisa));
     }
   };
 
@@ -98,59 +103,80 @@ function ModalDetailHutang({ isOpen, onClose, cartId, loadData }) {
   const handleSimpan = async (event) => {
     event.preventDefault();
 
-    const totalCicilan = rows.reduce(
-      (sum, row) => sum + (parseFloat(row.uang) || 0),
-      0,
-    );
     const payload = {
       detail_cicilan: rows,
       cart_draft_id: cartDraft.id,
     };
-    try {
-      swalLoading("Silahkan tunggu...", "Sedang memproses data");
-      const token = getToken();
-      const response = await api.post(`store-cicilan`, payload, {
-        headers: {
-          Authorization: `Bearer ${token}`, // Sisipkan token di header
-        },
-      });
-      if (response.data.success) {
-        detailNota();
-      } else {
-        swalError("Opps..!", response.data.message || "Terjadi kesalahan");
+    swalLoading("Silahkan tunggu...", "Sedang memproses data");
+    if (isOnline) {
+      try {
+        const token = getToken();
+        const response = await api.post(`store-cicilan`, payload, {
+          headers: {
+            Authorization: `Bearer ${token}`, // Sisipkan token di header
+          },
+        });
+        if (response.data.success) {
+          detailNota();
+        } else {
+          swalError("Opps..!", response.data.message || "Terjadi kesalahan");
+        }
+      } catch (error) {
+        swalError(
+          "Opps..!",
+          error?.response?.data?.message ||
+            error.message ||
+            "Terjadi kesalahan",
+        );
       }
-    } catch (error) {
-      swalError(
-        "Opps..!",
-        error?.response?.data?.message || error.message || "Terjadi kesalahan",
-      );
+    } else {
+      const params = {
+        detail_cicilan: rows,
+      };
+      await updatePartialByCartId(cartId, params);
+      detailNota();
     }
   };
 
   const handleLunas = async () => {
-    try {
-      swalLoading("Silahkan tunggu...", "Sedang mendapatkan data");
-      const token = getToken();
-      const response = await api.get(`ubah-lunas?cart_id=${cartId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`, // Sisipkan token di header
-        },
-      });
-      if (response.data.success) {
-        swalSuccess("Sukses", response.data.message);
+    swalLoading("Silahkan tunggu...", "Sedang mendapatkan data");
+    if (isOnline) {
+      try {
+        const token = getToken();
+        const response = await api.get(`ubah-lunas?cart_id=${cartId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`, // Sisipkan token di header
+          },
+        });
+        if (response.data.success) {
+          swalSuccess("Sukses", response.data.message);
+          // tutup
+          onClose();
+          loadData();
+          // swalSuccessAutoClose("Berhasil", response.data.message, 1000);
+        } else {
+          swalError("Opps..!", response.data.message);
+        }
+        // console.log(response.data.data);
+      } catch (error) {
+        swalError(
+          "Opps..!",
+          error?.response?.data?.message ||
+            error.message ||
+            "Terjadi kesalahan",
+        );
+      }
+    } else {
+      const result = await updateHutangLunas(cartId);
+      if (result.success) {
+        swalSuccess("Suksess", result.message);
         // tutup
         onClose();
         loadData();
-        // swalSuccessAutoClose("Berhasil", response.data.message, 1000);
       } else {
-        swalError("Opps..!", response.data.message);
+        swalError("Opps..!", result.message);
       }
-      // console.log(response.data.data);
-    } catch (error) {
-      swalError(
-        "Opps..!",
-        error?.response?.data?.message || error.message || "Terjadi kesalahan",
-      );
+      console.log(result);
     }
   };
   //
@@ -199,17 +225,21 @@ function ModalDetailHutang({ isOpen, onClose, cartId, loadData }) {
                   <tbody>
                     {notaData.map((val, index) => {
                       grandTotal += parseInt(val.cart_subtotal);
+                      const isDiskon =
+                        val.cart_diskon != null
+                          ? val.cart_diskon === "yes"
+                          : val.barang_st_diskon === "yes";
                       return (
                         <tr
                           key={index}
-                          className={` ${val.cart_diskon === "yes" ? "text-red-500" : ""} border border-gray-200 hover:bg-gray-50`}
+                          className={` ${isDiskon ? "text-red-500" : ""} border border-gray-200 hover:bg-gray-50`}
                         >
                           <td className="px-6 py-3 border border-gray-200 text-center">
                             {index + 1}
                           </td>
                           <td className="px-6 py-3 border border-gray-200">
                             {val.cart_nama ?? val.barang_nama}{" "}
-                            {val.cart_diskon === "yes" ? "(Grosir)" : ""}
+                            {isDiskon ? "(Grosir)" : ""}
                           </td>
                           <td className="px-6 py-3 border border-gray-200 text-center">
                             {RupiahFormat(
@@ -362,13 +392,13 @@ function ModalDetailHutang({ isOpen, onClose, cartId, loadData }) {
               >
                 Close
               </button>
-              <button
+              {/* <button
                 // onClick={() => handlePrintDraft()}
                 type="submit"
                 className="px-2 md:px-4 py-1 md:py-2 bg-colorPrimary font-poppins text-colorGray rounded hover:bg-blue-900"
               >
                 <i className="fa fa-print"></i> Cetak
-              </button>
+              </button> */}
             </div>
           </div>
         </div>

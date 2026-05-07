@@ -14,6 +14,7 @@ import {
 import ModalListCart from "../components/ModalListCart";
 import isOnline from "../utilities/isOnline";
 import {
+  deleteDataTransactionOffline,
   findCartBooking,
   findCartById,
   updatePartialByCartId,
@@ -204,6 +205,31 @@ const DraftPenjualan = () => {
   };
 
   //
+  const handleDeleteOffline = async () => {
+    const result = await swalConfirm(
+      "Yakin ?",
+      "Apakah Anda yakin ingin menghapus semua data booking pemesanan..?",
+    );
+    if (result.isConfirmed) {
+      const deleteOffline = await deleteDataTransactionOffline("booking");
+      if (deleteOffline.success) {
+        swalSuccess(
+          "Suksess",
+          deleteOffline.message + " " + deleteOffline.deleted,
+        );
+        await reloadGetDataTransaksi();
+      } else {
+        swalError("Opps..!", deleteOffline.message);
+      }
+    }
+  };
+
+  const [modalOffline, stModalOffline] = useState(false);
+  const handleShowModalOffline = () => {
+    stModalOffline(!modalOffline);
+  };
+
+  //
   let ttlUangMuka = 0;
   let ttlTagihan = 0;
   let ttlKekurangan = 0;
@@ -211,16 +237,24 @@ const DraftPenjualan = () => {
   return (
     <>
       <div className="">
-        <div className="h-full overflow-auto px-4 py-12 md:py-14 md:px-10">
-          <div className="flex justify-end">
-            <div className="flex justify-end">
-              <Link
-                to={"/dashboard"}
-                className="font-poppins rounded-sm bg-colorPrimary text-white px-2 py-1 text-xs md:text-sm"
-              >
-                <i className="fa fa-arrow-left"></i> Home
-              </Link>
+        <div className="h-full overflow-auto px-4 py-12 md:py-14 md:px-5">
+          <div className="flex justify-between">
+            <div
+              className={`font-poppins ${isOnline ? "bg-green-500" : "bg-red-500"} flex items-center px-2 gap-1 text-white`}
+            >
+              <i className="fa fa-wifi text-white text-xs"></i>{" "}
+              {isOnline ? "Online" : "Offline"}{" "}
+              <small className="text-white hidden md:block">
+                {!isOnline &&
+                  "(data anda tersedia hanya yang di local storage anda)"}
+              </small>
             </div>
+            <Link
+              to={"/dashboard"}
+              className="font-poppins rounded-sm bg-colorPrimary text-white px-2 py-1 text-xs md:text-sm"
+            >
+              <i className="fa fa-arrow-left"></i> Home
+            </Link>
           </div>
           <div className="grid grid-cols-3 gap-4 text-center font-poppins">
             <Link
@@ -245,7 +279,28 @@ const DraftPenjualan = () => {
               Draft Penjualan
             </Link>
           </div>
-          <form onSubmit={handleCari}>
+          <form
+            onSubmit={handleCari}
+            className="flex justify-between items-center"
+          >
+            <div className="flex gap-1">
+              <div className="bg-red-500 text-white px-2 py-1">
+                <button type="button" onClick={handleDeleteOffline}>
+                  <i className="fa fa-trash"></i>{" "}
+                  <small className="text-white hidden lg:inline">
+                    {!isOnline && " Hapus Booking Offline"}
+                  </small>
+                </button>
+              </div>
+              <div className="bg-colorPrimary text-white px-2 py-1">
+                <button type="button" onClick={handleShowModalOffline}>
+                  <i className="fa fa-upload"></i>{" "}
+                  <small className="text-white hidden lg:inline">
+                    {!isOnline && " Sync Booking Offline"}
+                  </small>
+                </button>
+              </div>
+            </div>
             <div className="my-3 flex gap-1 md:gap-2 justify-end">
               <input
                 type="date"
@@ -308,6 +363,11 @@ const DraftPenjualan = () => {
                 <th className="px-2 py-1 md:py-3 border border-gray-200">
                   Note
                 </th>
+                {!isOnline && (
+                  <th className="px-2 py-1 md:py-3 border border-gray-200">
+                    Upload
+                  </th>
+                )}
                 <th className="px-2 py-1 md:py-3 border border-gray-200">
                   Aksi
                 </th>
@@ -381,7 +441,9 @@ const DraftPenjualan = () => {
                       <td className="px-2 py-1 md:py-3 border border-gray-200 text-center">
                         {index + 1}
                       </td>
-                      <td className="px-2 py-1 md:py-3 border border-gray-200 text-center"></td>
+                      <td className="px-2 py-1 md:py-3 border border-gray-200 text-center">
+                        {formatDate(val.created_at)}
+                      </td>
                       <td className="px-2 py-1 md:py-3 border border-gray-200 text-center">
                         {val.cart_id}
                       </td>
@@ -405,6 +467,17 @@ const DraftPenjualan = () => {
                       <td className="px-2 py-1 md:py-3 border border-gray-200">
                         {val.draft_note}
                       </td>
+                      {!isOnline && (
+                        <td className="px-2 py-1 md:py-3 border border-gray-200 text-center">
+                          {val.upload_st === "no" ? (
+                            <span className="text-white p-2 bg-red-500">
+                              NO
+                            </span>
+                          ) : (
+                            <span className="text-whitbg-green-500">YES</span>
+                          )}
+                        </td>
+                      )}
                       <td className="px-2 py-3 border border-gray-200 text-base md:text-xl text-center">
                         <Link
                           onClick={() => handleListCart(val.cart_id)}
@@ -448,6 +521,9 @@ const DraftPenjualan = () => {
                 </td>
                 <td className="px-2 py-1 md:py-3 border border-gray-200 text-right"></td>
                 <td className="px-2 py-1 md:py-3 border border-gray-200 text-right"></td>
+                {!isOnline && (
+                  <td className="px-2 py-1 md:py-3 border border-gray-200 text-right"></td>
+                )}
               </tr>
             </tbody>
           </table>

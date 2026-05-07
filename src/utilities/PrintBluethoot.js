@@ -51,7 +51,11 @@ const PrintBluethoot = async (
 
     printDatas.forEach((item) => {
       let nama = item.cart_nama ?? item.barang_nama;
-      let cart_diskon = item.cart_diskon === "yes" ? " (Gros)" : "";
+      const isDiskon =
+        item.cart_diskon != null
+          ? item.cart_diskon === "yes"
+          : item.barang_st_diskon === "yes";
+      let cart_diskon = isDiskon ? " (Gros)" : "";
       let qty = String(item.cart_qty).padStart(3, " "); // lebar tetap
       let harga =
         `${formatRupiah(item.cart_harga_jual ?? item.barang_harga_jual)}`.padEnd(

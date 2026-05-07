@@ -34,6 +34,7 @@ function ModalAddDraf({
     draft_end: draftEnd,
     draft_note: draftNote,
     draft_st: "yes",
+    upload_st: "no",
     ttlBayar: ttlBayar,
   });
   const handleChange = (e) => {

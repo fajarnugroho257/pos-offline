@@ -92,7 +92,6 @@ function ModalPembayaran({
         }
       } else {
         const detailOffline = await findCartById(cart_id);
-        console.log(detailOffline);
         setValInputPelanggan(detailOffline.trans_pelanggan ?? "");
         const draft_uang_muka = Number(detailOffline.draft_uang_muka ?? 0);
         setKembalian(draft_uang_muka - parseInt(ttlBayar));

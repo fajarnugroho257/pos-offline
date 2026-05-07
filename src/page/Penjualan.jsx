@@ -11,12 +11,19 @@ import {
   swalConfirm,
   swalError,
   swalLoading,
+  swalSuccess,
   swalSuccessAutoClose,
 } from "../utilities/Swal";
 import ModalRetur from "../components/ModalRetur";
 import ModalDelete from "../components/ModalDelete";
 import isOnline from "../utilities/isOnline";
-import { dbPromise, listPembayaran } from "../services/db";
+import {
+  deleteDataTransactionOffline,
+  findCartById,
+  listPembayaran,
+  updatePartialByCartId,
+} from "../services/db";
+import ModalShowOffline from "../components/ModalShowOffline";
 
 const Penjualan = () => {
   // state
@@ -55,7 +62,7 @@ const Penjualan = () => {
       }
     } else {
       //
-      const datas = await listPembayaran();
+      const datas = await listPembayaran("yes");
       // console.log(datas);
       setDataTransaksiOffline(datas || []);
       swalSuccessAutoClose("Berhasil", "Data berhasil didapatkan", 500);
@@ -67,24 +74,24 @@ const Penjualan = () => {
       "Apakah Anda yakin ingin menghapus semua data penjualan..?",
     );
     if (result.isConfirmed) {
-      const db = await dbPromise;
-      await db.clear("transactions");
-      getDataTransaksi();
+      const deleteOffline = await deleteDataTransactionOffline("yes");
+      if (deleteOffline.success) {
+        swalSuccess(
+          "Suksess",
+          deleteOffline.message + " " + deleteOffline.deleted,
+        );
+        await reloadGetDataTransaksi();
+      } else {
+        swalError("Opps..!", deleteOffline.message);
+      }
     }
   };
-  const handleSyncOffline = async () => {
-    if (!isOnline) {
-      return swalError("Opps..!", "Fitur hanya tersedia saat Online");
-    }
-    const result = await swalConfirm(
-      "Yakin ?",
-      "Apakah Anda yakin ingin sinkronisasi data penjualan..?",
-    );
-    if (result.isConfirmed) {
-      const alltransaksi = await listPembayaran();
-      console.log(alltransaksi);
-    }
+
+  const [modalOffline, stModalOffline] = useState(false);
+  const handleShowModalOffline = () => {
+    stModalOffline(!modalOffline);
   };
+
   const reloadGetDataTransaksi = () => {
     const savedTanggal = localStorage.getItem("filterTanggal");
     // const today = new Date().toISOString().split("T")[0];
@@ -129,16 +136,16 @@ const Penjualan = () => {
 
   const handleRetur = (cart_id) => {
     if (!isOnline) {
-      return swalError("Opps..!", "Fitur hanya tersedia saat Online");
+      return swalError(
+        "Opps..!",
+        "Fitur hanya tersedia jika data sudah di upload",
+      );
     }
     setStModalRetur(!stModalRetur);
     setCartId(cart_id);
   };
 
   const handleDelete = (cart_id) => {
-    if (!isOnline) {
-      return swalError("Opps..!", "Fitur hanya tersedia saat Online");
-    }
     setStModalDelete(!stModalDelete);
     setCartId(cart_id);
   };
@@ -188,6 +195,35 @@ const Penjualan = () => {
   let ttlBelanja = 0;
   let ttlCash = 0;
   let ttlKembalian = 0;
+
+  const handleUploadById = async (cart_id) => {
+    try {
+      const detail = await findCartById(cart_id);
+      // console.log(alltransaksiOffline);
+      const token = getToken();
+      const response = await api.post(`store-transaksi-offline-byId`, detail, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const listCart = response.data.list_cart;
+      const dataSukses = response.data.data_sukses;
+      for (const val of listCart) {
+        const params = {
+          upload_st: "yes",
+        };
+        await updatePartialByCartId(val, params);
+      }
+      swalSuccess("Sukses", response.data.message);
+      dataSukses;
+      await reloadGetDataTransaksi();
+    } catch (error) {
+      swalError(
+        "Opps..!",
+        error?.response?.data?.message || error.message || "Terjadi kesalahan",
+      );
+    }
+  };
 
   return (
     <div className="">
@@ -240,12 +276,18 @@ const Penjualan = () => {
           <div className="flex gap-1">
             <div className="bg-red-500 text-white px-2 py-1">
               <button type="button" onClick={handleDeleteOffline}>
-                <i className="fa fa-trash"></i> Hapus Transaksi Offline
+                <i className="fa fa-trash"></i>{" "}
+                <small className="text-white hidden lg:inline">
+                  {!isOnline && " Hapus Transaksi Offline"}
+                </small>
               </button>
             </div>
             <div className="bg-colorPrimary text-white px-2 py-1">
-              <button type="button" onClick={handleSyncOffline}>
-                <i className="fa fa-sync"></i> Sync Transaksi Offline
+              <button type="button" onClick={handleShowModalOffline}>
+                <i className="fa fa-upload"></i>{" "}
+                <small className="text-white hidden lg:inline">
+                  {!isOnline && " Sync Transaksi Offline"}
+                </small>
               </button>
             </div>
           </div>
@@ -302,7 +344,7 @@ const Penjualan = () => {
                 Kembalian
               </th>
               <th className="px-2 py-1 md:py-3 border border-gray-200">
-                Kasir
+                {isOnline ? "Kasir" : "Upload"}
               </th>
               <th className="px-2 py-1 md:py-3 border border-gray-200">Nota</th>
             </tr>
@@ -410,7 +452,20 @@ const Penjualan = () => {
                       {RupiahFormat(val.trans_kembalian)}
                     </td>
                     <td className="px-2 py-1 md:py-3 border border-gray-200 text-center">
-                      -
+                      {val.upload_st === "no" ? (
+                        <span
+                          // onClick={() => handleUploadById(val.cart_id)}
+                          className={`text-white p-2 ${val.upload_st === "no" ? "bg-red-500" : "bg-green-500"}`}
+                        >
+                          NO
+                        </span>
+                      ) : (
+                        <span
+                          className={`text-white p-2 ${val.upload_st === "no" ? "bg-red-500" : "bg-green-500"}`}
+                        >
+                          YES
+                        </span>
+                      )}
                     </td>
                     <td className="px-2 py-1 md:py-3 border border-gray-200 text-center ">
                       <button
@@ -486,6 +541,13 @@ const Penjualan = () => {
           cartId={cartId}
           stateTable={reloadGetDataTransaksi}
           setStModalDelete={setStModalDelete}
+        />
+      )}
+      {modalOffline && (
+        <ModalShowOffline
+          isOpen={modalOffline}
+          closeModal={handleShowModalOffline}
+          reloadTable={reloadGetDataTransaksi}
         />
       )}
     </div>

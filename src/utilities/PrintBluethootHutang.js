@@ -2,12 +2,7 @@ import { connectSavedPrinter } from "./printerCharacteristic.js";
 import dayjs from "dayjs";
 import "dayjs/locale/id";
 
-const PrintBluethootHutang = async (
-  cart_data,
-  pusat,
-  cabang,
-  cartDraft
-) => {
+const PrintBluethootHutang = async (cart_data, pusat, cabang, cartDraft) => {
   //
   function padCenter(text, width, padChar = " ") {
     let padding = width - text.length;
@@ -27,9 +22,9 @@ const PrintBluethootHutang = async (
   }
 
   const formaOnlytDate = (dateString) => {
-      const date = dayjs(dateString).locale("id");
-      return date.format("DD MMM YYYY");
-    };
+    const date = dayjs(dateString).locale("id");
+    return date.format("DD MMM YYYY");
+  };
 
   try {
     // ESC/POS Commands
@@ -45,37 +40,53 @@ const PrintBluethootHutang = async (
     let content = padCenter(pusat_nama, 30, " ") + "\n";
     content += padCenter(cabang_nama, 30, " ") + "\n";
     content += padCenter(`${now.toLocaleString()}`, 30, " ") + "\n";
-    // 
-    content +=  "\n";
+    //
+    content += "\n";
     content += padCenter("NOTA HUTANG", 30, " ") + "\n";
     content += padCenter("Pelanggan", 30, " ") + "\n";
 
     content += "=============================" + "\n";
-    let pelanggan = (cartDraft?.draft_pelanggan ?? "").toString().padStart(16, " ");
+    let pelanggan = (
+      cartDraft?.draft_pelanggan ??
+      cartDraft.trans_pelanggan ??
+      ""
+    )
+      .toString()
+      .padStart(16, " ");
     content += `| Pelanggan  ${pelanggan}|\n`;
-    let ttlBelanja = formatRupiah(cartDraft.draft_uang_tagihan).padStart(14, " ");
+    let ttlBelanja = formatRupiah(
+      cartDraft.draft_uang_tagihan ?? cartDraft.ttlBayar,
+    ).padStart(14, " ");
     content += `| Ttl Belanja  ${ttlBelanja}|\n`;
     let muka = formatRupiah(cartDraft.draft_uang_muka).padStart(16, " ");
     content += `| Uang Muka  ${muka}|\n`;
     let sisa = formatRupiah(cartDraft.draft_uang_sisa).padStart(15, " ");
     content += "=============================" + "\n";
     content += `| Kekurangan  ${sisa}|\n`;
-    // 
-    content +=  "\n";
+    //
+    content += "\n";
     content += padCenter("Pembelian", 30, " ") + "\n";
-    // 
+    //
     content += "=============================" + "\n";
     content += "| Item     |Qty| Price       |" + "\n";
     content += "=============================" + "\n";
 
     let ttlsSubTotal = 0;
-    // 
+    //
     printDatas.forEach((item) => {
       ttlsSubTotal += parseInt(item.cart_subtotal);
-      let nama = item.cart_nama;
-      let cart_diskon = item.cart_diskon === "yes" ? " (Gros)" : "";
+      let nama = item.cart_nama ?? item.barang_nama;
+      const isDiskon =
+        item.cart_diskon != null
+          ? item.cart_diskon === "yes"
+          : item.barang_st_diskon === "yes";
+      let cart_diskon = isDiskon ? " (Gros)" : "";
       let qty = String(item.cart_qty).padStart(3, " ");
-      let harga = `${formatRupiah(item.cart_harga_jual)}`.padEnd(8, " ");
+      let harga =
+        `${formatRupiah(item.cart_harga_jual ?? item.barang_harga_jual)}`.padEnd(
+          8,
+          " ",
+        );
       let subTotal = `${formatRupiah(item.cart_subtotal)}`.padStart(10, " ");
       content += `| ${nama}${cart_diskon}\n| ${harga} | ${qty} | ${subTotal}|\n`;
     });

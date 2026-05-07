@@ -1,16 +1,19 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
-import { setToken } from "../utilities/Auth";
+import { getCabangId, setToken, getCabang } from "../utilities/Auth";
 import quick from "../assets/img/calculator_6655639.png";
 import { ToastContainer, toast } from "react-toastify";
-import { dbPromise } from "../services/db";
+import { dbPromise, listAllTransaction } from "../services/db";
+import { swalError } from "../utilities/Swal";
 
 function Login() {
   localStorage.setItem("page", "login");
   const [usermail, setUsermail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
+  const cabangId = getCabangId();
+  const cabangNama = getCabang();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -20,7 +23,6 @@ function Login() {
       username: usermail,
       password: password,
     };
-
     const endPoint = "https://sameeramart.com/app-pos/api/login-api";
     // const endPoint = "http://127.0.0.1:8000/api/login-api";
     const response = await fetch(endPoint, {
@@ -28,12 +30,29 @@ function Login() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
+    const datas = await response.json();
     if (response.ok) {
-      const data = await response.json();
+      if (cabangId !== null) {
+        if (datas.cabang_id.toString() !== cabangId.toString()) {
+          // check local storage
+          const dataAllTransaction = await listAllTransaction();
+          console.log(dataAllTransaction);
+          if (dataAllTransaction.length > 0) {
+            return swalError(
+              "Opss..!",
+              "Terdapat data transaksi offline yang masih ada di cabang " +
+                cabangNama +
+                ", Silahkan login menggunakan akun cabang " +
+                cabangNama +
+                ", dan Upload transaksi ke server..!! ",
+            );
+          }
+        }
+      }
       // Simpan token JWT
-      setToken(data);
+      setToken(datas);
       toast.update(toastId, {
-        render: data.message,
+        render: datas.message,
         type: "success",
         isLoading: false,
         autoClose: 3000,
@@ -41,9 +60,8 @@ function Login() {
       // Redirect ke dashboard
       navigate("/dashboard");
     } else {
-      const data = await response.json();
       toast.update(toastId, {
-        render: data.message,
+        render: datas.message,
         type: "error",
         isLoading: false,
         autoClose: 3000,
@@ -87,10 +105,17 @@ function Login() {
       </div>
       <div className="h-screen bg-colorGray flex items-center justify-center">
         <form className="" onSubmit={handleLogin}>
-          <h4 className="font-poppins text-4xl font-semibold text-colorPrimary text-center">
-            Login
-          </h4>
-          <div className="mt-16">
+          <div className="text-center">
+            <h4 className="font-poppins text-4xl font-semibold text-colorPrimary text-center">
+              Login
+            </h4>
+            {cabangNama && (
+              <small className="italic font-poppins text-center text-colorPrimary">
+                Last login : {cabangNama}
+              </small>
+            )}
+          </div>
+          <div className="mt-14">
             <input
               required
               type="text"
@@ -128,13 +153,13 @@ function Login() {
               Login
             </button>
 
-            <button
+            {/* <button
               onClick={handleLoginOffline}
               type="button"
               className="block bg-red-500 font-poppins text-colorGray font-semibold py-1 px-3 rounded-[5px] hover:bg-red-400"
             >
               Login Offline
-            </button>
+            </button> */}
             {/* <Link className="block border-2 border-colorPrimary bg-colorGray font-poppins text-colorPrimary font-semibold py-1 px-3 rounded-[5px] hover:bg-gray-200">
               Sign In
             </Link> */}

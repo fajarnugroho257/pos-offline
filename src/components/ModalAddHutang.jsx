@@ -30,6 +30,7 @@ function ModalAddHutang({
     draft_uang_sisa: tagihan - inputBayar,
     draft_note: draftNote,
     draft_st: "yes",
+    upload_st: "no",
     ttlBayar: ttlBayar,
   });
   const handleChange = (e) => {

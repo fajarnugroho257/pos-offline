@@ -16,6 +16,7 @@ import {
   saveOrUpdateTransaction,
 } from "../services/db";
 import { getUserId } from "../utilities/Auth";
+import dayjs from "dayjs";
 
 function Pos() {
   // TOKEN
@@ -106,7 +107,6 @@ function Pos() {
               );
               draftCart = response.data.barang_master;
             } else {
-              console.log(childData);
               draftCart = await findBarang(childData);
             }
             const draftDataCart = {
@@ -381,20 +381,16 @@ function Pos() {
           const saveTransaction = {
             cart_id: cartIdOffline,
             user_id: userId,
-            // trans_date: null,
-            // trans_total: null,
-            // trans_bayar: null,
-            // trans_kembalian: null,
-            // trans_pelanggan: null,
             cart_st: "draft",
             sortedCart: sortedCart,
+            upload_st: "no",
+            cabang_id: cabang_id,
+            created_at: dayjs().format("YYYY-MM-DD HH:mm:ss"),
           };
-          console.log(saveTransaction);
+          // console.log(saveTransaction);
           await saveOrUpdateTransaction(saveTransaction);
           const datas = await db.getAll("transactions");
-          console.log(datas);
           if (datas) {
-            console.log(transaksiSubtotal);
             // open modal bayar
             setOpenBayar(true);
             setCartId(cartIdOffline);

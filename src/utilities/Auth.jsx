@@ -29,6 +29,10 @@ export const getCabang = () => {
   return localStorage.getItem("cabang_nama");
 };
 
+export const getCabangId = () => {
+  return localStorage.getItem("cabang_id");
+};
+
 export const getUserId = () => {
   return localStorage.getItem("user_id");
 };
