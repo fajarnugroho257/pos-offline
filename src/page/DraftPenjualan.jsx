@@ -14,11 +14,13 @@ import {
 import ModalListCart from "../components/ModalListCart";
 import isOnline from "../utilities/isOnline";
 import {
+  deleteById,
   deleteDataTransactionOffline,
   findCartBooking,
   findCartById,
   updatePartialByCartId,
 } from "../services/db";
+import ModalShowDraftOffline from "../components/ModalShowDraftOffline";
 
 const DraftPenjualan = () => {
   const navigate = useNavigate();
@@ -151,6 +153,12 @@ const DraftPenjualan = () => {
         }
       } else {
         const detailOffline = await findCartById(cart_id);
+        if (detailOffline.upload_st === "yes") {
+          return swalError(
+            "Opps..!",
+            "Data ini sudah terupload ke server, Silahkan untuk melanjutkan transaksi di server.",
+          );
+        }
         const params = {
           cart_st: "draft",
         };
@@ -224,6 +232,18 @@ const DraftPenjualan = () => {
     }
   };
 
+  const handleDelete = async (cart_id) => {
+    const result = await swalConfirm(
+      "Apakah anda yakin akan menghapus data ini? ",
+      "Silahkan pastikan terlebih dahulu",
+    );
+    if (result.isConfirmed) {
+      const detail = await deleteById(cart_id);
+      swalSuccess("Suksess", detail.message);
+      reloadGetDataTransaksi();
+    }
+  };
+
   const [modalOffline, stModalOffline] = useState(false);
   const handleShowModalOffline = () => {
     stModalOffline(!modalOffline);
@@ -288,7 +308,7 @@ const DraftPenjualan = () => {
                 <button type="button" onClick={handleDeleteOffline}>
                   <i className="fa fa-trash"></i>{" "}
                   <small className="text-white hidden lg:inline">
-                    {!isOnline && " Hapus Booking Offline"}
+                    {!isOnline && " Hapus Draft Offline"}
                   </small>
                 </button>
               </div>
@@ -296,7 +316,7 @@ const DraftPenjualan = () => {
                 <button type="button" onClick={handleShowModalOffline}>
                   <i className="fa fa-upload"></i>{" "}
                   <small className="text-white hidden lg:inline">
-                    {!isOnline && " Sync Booking Offline"}
+                    {!isOnline && " Sync Draft Offline"}
                   </small>
                 </button>
               </div>
@@ -474,7 +494,9 @@ const DraftPenjualan = () => {
                               NO
                             </span>
                           ) : (
-                            <span className="text-whitbg-green-500">YES</span>
+                            <span className="text-white p-2 bg-green-500">
+                              YES
+                            </span>
                           )}
                         </td>
                       )}
@@ -482,13 +504,25 @@ const DraftPenjualan = () => {
                         <Link
                           onClick={() => handleListCart(val.cart_id)}
                           title="Lihat Data Barang"
-                          className="fa fa-eye text-colorPrimary md:mr-3"
-                        ></Link>
+                          className="px-2 py-1 text-white bg-amber-500 hover:bg-amber-600 rounded"
+                        >
+                          <i className="fa fa-eye"></i>
+                        </Link>
                         <Link
                           onClick={() => hanldeTransaksi(val.cart_id)}
                           title="Ubah Data / Lanjutkan Transaksi"
-                          className="fa fa-shopping-cart text-red-600 md:mr-3"
-                        ></Link>
+                          className="px-2 py-1 text-white bg-colorPrimary mx-1 rounded"
+                        >
+                          <i className="fa fa-shopping-cart"></i>
+                        </Link>
+                        {!isOnline && (
+                          <button
+                            onClick={() => handleDelete(val.cart_id)}
+                            className="px-2 py-1 text-white bg-red-500 hover:bg-red-600 rounded"
+                          >
+                            <i className="fa fa-trash"></i>
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -533,6 +567,13 @@ const DraftPenjualan = () => {
             isOpen={true}
             onClose={handleListCart}
             cartId={cartId}
+          />
+        )}
+        {modalOffline && (
+          <ModalShowDraftOffline
+            isOpen={modalOffline}
+            closeModal={handleShowModalOffline}
+            reloadDataOnline={reloadGetDataTransaksi}
           />
         )}
       </div>

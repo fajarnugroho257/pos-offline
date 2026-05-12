@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { getToken } from "../utilities/Auth";
 import api from "../utilities/axiosInterceptor";
-import { QZTrayProvider, useQZTray } from "./QZTrayContext";
+import { QZTrayProvider } from "./QZTrayContext";
 import PrintBluethoot from "../utilities/PrintBluethoot";
 import RupiahFormat from "../utilities/RupiahFormat";
 import PilihPrint from "../utilities/PilihPrint";
@@ -56,7 +56,6 @@ function ModalDetailHutang({ isOpen, onClose, cartId, loadData }) {
       }
     } else {
       const detail = await findCartById(cartId);
-      console.log(detail);
       const cicilanKosong = [];
       swalSuccessAutoClose("Berhasil", "Data berhasil didapatkan", 500);
       setNotaData(detail.sortedCart);
@@ -176,7 +175,6 @@ function ModalDetailHutang({ isOpen, onClose, cartId, loadData }) {
       } else {
         swalError("Opps..!", result.message);
       }
-      console.log(result);
     }
   };
   //

@@ -165,12 +165,13 @@ const Barang = () => {
     setStok(!stok);
     setId(id);
   };
-  const handleCloseStok = async (id) => {
+  const handleCloseStok = async () => {
     setStok(!stok);
     setId(null);
     reloadPage();
   };
   const syncLocal = async () => {
+    swalLoading("Silahkan tunggu...", "Sedang mendapatkan data");
     try {
       const cabang_id = localStorage.getItem("cabang_id");
       const params = { cabang_id: cabang_id };
@@ -214,22 +215,6 @@ const Barang = () => {
   return (
     <div className="">
       <div className="h-full overflow-auto px-4 py-12 md:py-14 md:px-5">
-        {/* <div className="grid grid-cols-2 gap-4 text-center font-poppins">
-          <Link
-            to={"/penjualan"}
-            className={`text-xs md:text-sm cursor-pointer w-full mt-2 px-3 py-2 rounded-md ${tab === "penjualan" ? "bg-colorPrimary text-white" : "bg-gray-300 text-black"}`}
-            onClick={() => handleTab("penjualan")}
-          >
-            Barang Master
-          </Link>
-          <Link
-            to={"/hutang"}
-            className={`text-xs md:text-sm cursor-pointer w-full mt-2 px-3 py-2 rounded-md ${tab === "hutang" ? "bg-colorPrimary text-white" : "bg-gray-300 text-black"}`}
-            onClick={() => handleTab("hutang")}
-          >
-            Tambah Stok
-          </Link>
-        </div> */}
         <form onSubmit={handleCari}>
           <div className="flex justify-between my-3">
             <div

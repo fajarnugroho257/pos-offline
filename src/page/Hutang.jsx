@@ -109,6 +109,7 @@ const Hutang = () => {
   const handleNota = (cart_id) => {
     setStModal(!stModal);
     setCartId(cart_id);
+    reloadGetDataTransaksi();
   };
 
   const handleTab = (tabStatus) => {
@@ -162,6 +163,7 @@ const Hutang = () => {
   let ttlUangMuka = 0;
   let ttlTagihan = 0;
   let ttlKekurangan = 0;
+  let ttlCicilan = 0;
   //
   const handleDeleteOffline = async () => {
     const result = await swalConfirm(
@@ -316,6 +318,9 @@ const Hutang = () => {
               <th className="px-2 py-1 md:py-3 border border-gray-200">
                 Uang Muka
               </th>
+              <th className="px-2 py-1 md:py-3 border border-gray-200 bg-yellow-200">
+                Cicilan
+              </th>
               <th className="px-2 py-1 md:py-3 border border-gray-200 bg-red-200">
                 Kekurangan
               </th>
@@ -331,9 +336,15 @@ const Hutang = () => {
           <tbody>
             {isOnline && dataTransaksi && dataTransaksi.length > 0 ? (
               dataTransaksi.map((val, index) => {
+                //
+                let draft_uang_sisa = val.cart.cart_draft.draft_uang_sisa;
+                let total_cicilan = val.cart.total_cicilan;
+                let resKekurangan = draft_uang_sisa - total_cicilan;
+                //
                 ttlUangMuka += parseInt(val.cart.cart_draft.draft_uang_muka);
                 ttlTagihan += parseInt(val.cart.cart_draft.draft_uang_tagihan);
                 ttlKekurangan += parseInt(val.cart.cart_draft.draft_uang_sisa);
+                ttlCicilan += parseInt(val.cart.total_cicilan);
                 return (
                   <tr
                     key={index}
@@ -357,8 +368,11 @@ const Hutang = () => {
                     <td className="px-2 py-1 md:py-3 border border-gray-200 text-right">
                       {RupiahFormat(val.cart.cart_draft.draft_uang_muka)}
                     </td>
+                    <td className="px-2 py-1 md:py-3 border border-gray-200 text-right bg-yellow-200">
+                      {RupiahFormat(total_cicilan)}
+                    </td>
                     <td className="px-2 py-1 md:py-3 border border-gray-200 text-right bg-red-200">
-                      {RupiahFormat(val.cart.cart_draft.draft_uang_sisa)}
+                      {RupiahFormat(resKekurangan)}
                     </td>
                     <td className="px-2 py-1 md:py-3 border border-gray-200">
                       {val.cart.cart_draft.draft_note}
@@ -475,8 +489,11 @@ const Hutang = () => {
               <td className="px-2 py-1 md:py-3 border border-gray-200 text-right">
                 {RupiahFormat(ttlUangMuka)}
               </td>
+              <td className="px-2 py-1 md:py-3 border border-gray-200 text-right bg-yellow-200">
+                {RupiahFormat(ttlCicilan)}
+              </td>
               <td className="px-2 py-1 md:py-3 border border-gray-200 text-right bg-red-200">
-                {RupiahFormat(ttlKekurangan)}
+                {RupiahFormat(ttlKekurangan - ttlCicilan)}
               </td>
               <td className="px-2 py-1 md:py-3 border border-gray-200 text-right"></td>
               <td className="px-2 py-1 md:py-3 border border-gray-200 text-right"></td>

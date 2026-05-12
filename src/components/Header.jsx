@@ -20,6 +20,7 @@ function Header(status) {
     { name: "Pos", url: "/pos" },
     { name: "Penjualan", url: "/penjualan" },
     { name: "Barang", url: "/barang" },
+    { name: "Statistik", url: "/statistik" },
     { name: "Settings", url: "/settings" },
   ];
   //

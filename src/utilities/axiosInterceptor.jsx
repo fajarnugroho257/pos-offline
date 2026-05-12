@@ -14,7 +14,7 @@ api.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       // console.log(error);
       localStorage.removeItem("token"); // Hapus token
-      window.location.href = "/testing-app/login"; // Redirect ke login
+      window.location.href = "/app-kasir/login"; // Redirect ke login
     }
     // Jangan tampilkan stack trace di konsol
     return Promise.reject({ handled: true });

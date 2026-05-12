@@ -1,37 +1,23 @@
 import { Navigate, useNavigate } from "react-router-dom";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useEffect } from "react";
 import iconPos from "../assets/img/pos.png";
 import iconLogout from "../assets/img/logout.png";
 import iconReport from "../assets/img/report.png";
 import iconDatabase from "../assets/img/database.png";
 import iconSettings from "../assets/img/settings.png";
+import shopSettings from "../assets/img/shop.png";
 import Logout from "../utilities/Logount";
 import api from "../utilities/axiosInterceptor";
 import Pos from "./Pos";
 import { getToken } from "../utilities/Auth";
 import { ToastContainer } from "react-toastify";
-import { swalSuccess, swalError, swalConfirm } from "../utilities/Swal";
+import { swalError, swalConfirm } from "../utilities/Swal";
+import isOnline from "../utilities/isOnline";
 
 function Pembayaran() {
   const cabang_nama = localStorage.getItem("cabang_nama");
   const name = localStorage.getItem("name");
   const navigate = useNavigate();
-  const dropdownRef = useRef(null);
-
-  // Tutup dropdown jika klik di luar elemen dropdown
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false); // Tutup dropdown
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [dropdownRef]);
 
   useEffect(() => {
     const token = getToken();
@@ -60,29 +46,37 @@ function Pembayaran() {
     navigate(`/${event}`);
   };
 
-  const [isOpen, setIsOpen] = useState(false);
-
-  const handleModalTambah = () => {
-    setIsOpen(!isOpen);
-  };
-
   const handleLogout = async () => {
-    const result = await swalConfirm("Yakin?", "Anda akan keluar");
-    if (result.isConfirmed) {
-      const token = localStorage.getItem("token");
-      const response = await api.get("/logout", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-      });
-      if (response.status === 200) {
-        // Hapus token dari local storage (atau session storage)
-        localStorage.removeItem("token");
-        // Arahkan ke halaman login
-        navigate("/login");
+    // TOKEN
+    const token = localStorage.getItem("token");
+    if (isOnline) {
+      try {
+        const result = await swalConfirm("Yakin?", "Anda akan keluar");
+        if (result.isConfirmed) {
+          const response = await api.get("/logout", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+          });
+          if (response.status === 200) {
+            // Hapus token dari local storage (atau session storage)
+            localStorage.removeItem("token");
+            // Arahkan ke halaman login
+            navigate("/login");
+          }
+        }
+      } catch (error) {
+        swalError(
+          "Opps..!",
+          error?.response?.data?.message ||
+            error.message ||
+            "Terjadi kesalahan",
+        );
       }
+    } else {
+      swalError("Anda dalam mode offline", "tidak bisa logout");
     }
   };
 
@@ -106,7 +100,11 @@ function Pembayaran() {
               </div>
               <div onClick={() => handleSubmit("penjualan")}>
                 <div className="mx-auto w-24 h-[110px] md:w-28 md:h-40 lg:w-44 lg:h-56 bg-colorPrimary rounded-lg shadow-lg flex justify-center items-center cursor-pointer hover:bg-colorPrimaryHover">
-                  <img src={iconReport} className="w-4/6" alt="iconReport" />
+                  <img
+                    src={shopSettings}
+                    className="w-4/6"
+                    alt="shopSettings"
+                  />
                 </div>
                 <h3 className="text-center mt-3 text-gray-800 font-poppins font-semibold text-sm md:text-lg lg:text-2xl">
                   Penjualan
@@ -134,6 +132,14 @@ function Pembayaran() {
                 </div>
                 <h3 className="text-center mt-3 text-gray-800 font-poppins font-semibold text-sm md:text-lg lg:text-2xl">
                   Settings
+                </h3>
+              </div>
+              <div onClick={() => handleSubmit("statistik")}>
+                <div className="mx-auto w-24 h-[110px] md:w-28 md:h-40 lg:w-44 lg:h-56 bg-colorPrimary rounded-lg shadow-lg flex justify-center items-center cursor-pointer hover:bg-colorPrimaryHover">
+                  <img src={iconReport} className="w-4/6" alt="iconReport" />
+                </div>
+                <h3 className="text-center mt-3 text-gray-800 font-poppins font-semibold text-sm md:text-lg lg:text-2xl">
+                  Statistik
                 </h3>
               </div>
               <div onClick={() => handleLogout()}>

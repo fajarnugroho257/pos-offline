@@ -1,6 +1,7 @@
 import { openDB } from "idb";
 import { getCabangId } from "../utilities/Auth";
 import dayjs from "dayjs";
+import { swalError } from "../utilities/Swal";
 
 const cabangId = getCabangId();
 export const dbPromise = openDB("pos-db", 2, {
@@ -185,9 +186,14 @@ export const updateHutangLunas = async (cart_id) => {
   const index = store.index("cart_id");
 
   const existing = await index.get(cart_id);
-  console.log(existing);
+  if (existing.upload_st === "yes") {
+    swalError(
+      "Opps..!",
+      "Data ini sudah terupload ke server, Silahkan untuk melakukan pelunasan di server.",
+    );
+    return;
+  }
   if (!existing) return;
-
   const detailCicilan = existing.detail_cicilan ?? [];
   const detailTagihan = existing.draft_uang_sisa;
   // total cicilan
@@ -203,9 +209,6 @@ export const updateHutangLunas = async (cart_id) => {
   }
   // update
   const kembalian = totalCicilan - detailTagihan;
-  console.log(detailCicilan);
-  console.log(totalCicilan);
-  console.log(detailTagihan);
 
   const trans_bayar =
     parseInt(totalCicilan) + parseInt(existing.draft_uang_muka);

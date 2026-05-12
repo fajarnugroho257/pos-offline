@@ -15,6 +15,7 @@ import Hutang from "./page/Hutang";
 import HeaderCopy from "./components/HeaderCopy";
 import Laporan from "./page/Laporan";
 import Barang from "./page/Barang";
+import Statistik from "./page/Statistik";
 
 function App() {
   const location = useLocation();
@@ -69,6 +70,10 @@ function App() {
           <Route
             path="/laporan"
             element={<AuthRoute element={<Laporan />} isPrivate={true} />}
+          />
+          <Route
+            path="/statistik"
+            element={<AuthRoute element={<Statistik />} isPrivate={true} />}
           />
         </Routes>
       </main>

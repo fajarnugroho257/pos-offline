@@ -26,7 +26,7 @@ registerSW({
 // );
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <BrowserRouter basename="/testing-app">
+  <BrowserRouter basename="/app-kasir">
     <QZTrayProvider>
       <App />
     </QZTrayProvider>
